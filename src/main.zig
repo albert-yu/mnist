@@ -1,19 +1,15 @@
 const std = @import("std");
+const nn = @import("network.zig");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
+    var init_weights = [_]f32{0} ** 10;
+    var init_biases = [_]f32{0} ** 10;
+    var network = nn.NetworkLayer{
+        .weights = &init_weights,
+        .biases = &init_biases,
+    };
+    var size = network.size();
+    std.debug.print("size: {}\n", .{size});
 }
 
 test "simple test" {
