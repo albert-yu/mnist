@@ -3,10 +3,9 @@ const nn = @import("network.zig");
 
 pub fn main() !void {
     var init_weights = [_]f32{0} ** 10;
-    var init_biases = [_]f32{0} ** 10;
     var network = nn.NetworkLayer{
         .weights = &init_weights,
-        .biases = &init_biases,
+        .bias = 0.5,
     };
     var size = network.size();
     std.debug.print("size: {}\n", .{size});
