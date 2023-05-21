@@ -7,7 +7,7 @@ pub const NetworkLayer = struct {
     }
 
     /// w * x + b
-    pub fn multiply_add(self: NetworkLayer, x: []f32) f32 {
+    pub fn multiply_add(self: NetworkLayer, x: []const f32) f32 {
         var result: f32 = 0;
         for (self.weights) |weight, i| {
             const other_val = x[i];

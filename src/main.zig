@@ -2,18 +2,16 @@ const std = @import("std");
 const nn = @import("network.zig");
 
 pub fn main() !void {
-    var init_weights = [_]f32{0} ** 10;
-    var network = nn.NetworkLayer{
-        .weights = &init_weights,
-        .bias = 0.5,
-    };
-    var size = network.size();
-    std.debug.print("size: {}\n", .{size});
+    // do nothing
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+test "multiply_add test" {
+    const err_tolerance = 1e-9;
+    const LAYER_SIZE = 3;
+    var test_x = [LAYER_SIZE]f32{ 1, 2, 3 };
+    var weights = [LAYER_SIZE]f32{ 1, 2, 3 };
+    var test_layer = nn.NetworkLayer{ .weights = &weights, .bias = 0.1443 };
+    var result = test_layer.multiply_add(&test_x);
+    var expected: f32 = 14.1443;
+    try std.testing.expectApproxEqRel(expected, result, err_tolerance);
 }
