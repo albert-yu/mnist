@@ -7,8 +7,9 @@ pub fn main() !void {
     // do nothing
 }
 
+const err_tolerance = 1e-9;
+
 test "matrix application test" {
-    const err_tolerance = 1e-9;
     var matrix_data = [_]f32{
         1, 2, 1,
         4, 3, 4,
@@ -32,7 +33,6 @@ test "accumulate test" {
     var vector = [_]f32{ 1, 2 };
     var addend = [_]f32{ 2, 3 };
     mat.accumulate(&vector, &addend);
-    const err_tolerance = 1e-9;
     var expected_0: f32 = 3;
     var expected_1: f32 = 5;
     try std.testing.expectApproxEqRel(expected_0, vector[0], err_tolerance);
@@ -40,7 +40,6 @@ test "accumulate test" {
 }
 
 test "sigmoid test" {
-    const err_tolerance = 1e-9;
     var vector = [_]f32{ 0, 1 };
     var out = [_]f32{0} ** 2;
     maths.apply_sigmoid(&vector, &out);
