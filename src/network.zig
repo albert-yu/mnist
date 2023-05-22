@@ -6,10 +6,22 @@ fn sigmoid(val: f32) f32 {
 
 pub const NetworkLayer = struct {
     weights: []f32,
-    bias: f32,
+    biases: []f32,
 
+    /// Returns size of the weight matrix
+    /// (number of elements)
     pub fn size(self: NetworkLayer) usize {
         return self.weights.len;
+    }
+
+    pub fn init(input_count: usize, output_count: usize) !NetworkLayer {
+        var weight_size = input_count * output_count;
+        var weights = [_]f32{0} ** weight_size;
+        var biases = [_]f32{0} ** output_count;
+        return NetworkLayer{
+            .weights = weights,
+            .biases = biases,
+        };
     }
 
     /// w * x + b
