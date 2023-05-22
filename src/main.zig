@@ -6,7 +6,7 @@ pub fn main() !void {
     // do nothing
 }
 
-test "feedforward test" {
+test "matrix application test" {
     const err_tolerance = 1e-9;
     var matrix_data = [_]f32{
         1, 2, 1,
