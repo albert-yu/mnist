@@ -11,3 +11,7 @@ pub fn apply_sigmoid(arr: []f32, out: []f32) void {
         out[i] = sigmoid(value);
     }
 }
+
+pub fn apply_sigmoid_in_place(arr: []f32) void {
+    apply_sigmoid(&arr, &arr);
+}

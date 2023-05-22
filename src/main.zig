@@ -28,6 +28,17 @@ test "matrix application test" {
     try std.testing.expectApproxEqRel(expected_1, result[1], err_tolerance);
 }
 
+test "accumulate test" {
+    var vector = [_]f32{ 1, 2 };
+    var addend = [_]f32{ 2, 3 };
+    mat.accumulate(&vector, &addend);
+    const err_tolerance = 1e-9;
+    var expected_0: f32 = 3;
+    var expected_1: f32 = 5;
+    try std.testing.expectApproxEqRel(expected_0, vector[0], err_tolerance);
+    try std.testing.expectApproxEqRel(expected_1, vector[1], err_tolerance);
+}
+
 test "sigmoid test" {
     const err_tolerance = 1e-9;
     var vector = [_]f32{ 0, 1 };

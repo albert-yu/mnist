@@ -3,17 +3,33 @@
 /// Input vectors assumed to be of equal length.
 pub fn inner_product(vec1: []f32, vec2: []f32) f32 {
     var result: f32 = 0;
-    for (vec1) |weight, i| {
+    for (vec1) |val, i| {
         const other_val = vec2[i];
-        result += weight * other_val;
+        result += val * other_val;
     }
     return result;
+}
+
+pub fn sum(vec1: []f32, vec2: []f32, out: []f32) void {
+    for (vec1) |val, i| {
+        const other_val = vec2[i];
+        out[i] = val + other_val;
+    }
+}
+
+pub fn accumulate(acc: []f32, addend: []f32) void {
+    sum(acc, addend, acc);
 }
 
 pub const Matrix = struct {
     data: []f32,
     rows: usize,
     cols: usize,
+
+    /// Number of elements in this matrix
+    pub fn size(self: Matrix) usize {
+        return self.data.len;
+    }
 
     /// Applies the matrix as a linear transformation
     /// to the vector (left multiplication),
