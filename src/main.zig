@@ -1,5 +1,5 @@
 const std = @import("std");
-const mat = @import("matrix.zig");
+const lin = @import("linalg.zig");
 const maths = @import("maths.zig");
 // const nn = @import("network.zig");
 
@@ -14,7 +14,7 @@ test "matrix application test" {
         1, 2, 1,
         4, 3, 4,
     };
-    var matrix = mat.Matrix{
+    var matrix = lin.Matrix{
         .data = &matrix_data,
         .rows = 2,
         .cols = 3,
@@ -32,7 +32,7 @@ test "matrix application test" {
 test "accumulate test" {
     var vector = [_]f32{ 1, 2 };
     var addend = [_]f32{ 2, 3 };
-    mat.accumulate(&vector, &addend);
+    lin.accumulate(&vector, &addend);
     var expected_0: f32 = 3;
     var expected_1: f32 = 5;
     try std.testing.expectApproxEqRel(expected_0, vector[0], err_tolerance);

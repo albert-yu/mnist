@@ -1,9 +1,9 @@
 const std = @import("std");
-const mat = @import("matrix.zig");
+const linalg = @import("linalg.zig");
 const maths = @import("maths.zig");
 
 pub const NetworkLayer = struct {
-    weights: mat.Matrix,
+    weights: linalg.Matrix,
     biases: []f32,
 
     /// Returns size of the weight matrix
@@ -14,7 +14,7 @@ pub const NetworkLayer = struct {
 
     pub fn feedforward(self: NetworkLayer, x: []const f32, out: []f32) void {
         self.weights.apply(&x, &out);
-        mat.accumulate(&out, &self.biases);
+        linalg.accumulate(&out, &self.biases);
         maths.apply_sigmoid_in_place(&out);
     }
 };
