@@ -41,12 +41,21 @@ pub const Matrix = struct {
             var acc: f32 = 0;
             var j: usize = 0;
             while (j < self.cols) : (j += 1) {
-                var index = i * self.cols + j;
-                var value = self.data[index];
+                var value = self.at(i, j);
                 var vec_value = vec[j];
                 acc += value * vec_value;
             }
             out[i] = acc;
         }
+    }
+
+    /// Returns the value at the given indices.
+    ///
+    /// Parameters:
+    ///   i - 0-based row index
+    ///   j - 0-based column index
+    pub fn at(self: Matrix, i: usize, j: usize) f32 {
+        var index = i * self.cols + j;
+        return self.data[index];
     }
 };
