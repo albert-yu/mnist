@@ -86,7 +86,7 @@ pub const Matrix = struct {
     ///
     /// In-place transposition is a non-trivial problem:
     /// https://en.wikipedia.org/wiki/In-place_matrix_transposition
-    pub fn t(self: *Matrix, out: *Matrix) void {
+    pub fn transpose(self: *Matrix, out: *Matrix) void {
         // swap rows and columns
         out.rows = self.cols;
         out.cols = self.rows;
