@@ -55,7 +55,7 @@ test "transpose test" {
         .rows = 0,
         .cols = 0,
     };
-    matrix.transpose(&t_matrix);
+    lin.transpose(&matrix, &t_matrix);
     var expected_rows: usize = 3;
     var expected_cols: usize = 2;
     try std.testing.expectEqual(expected_rows, t_matrix.rows);

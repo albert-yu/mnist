@@ -17,6 +17,24 @@ pub fn sum(vec1: []f32, vec2: []f32, out: []f32) void {
     }
 }
 
+/// Sets the resulting transposed matrix
+/// to `out`.
+///
+/// In-place transposition is a non-trivial problem:
+/// https://en.wikipedia.org/wiki/In-place_matrix_transposition
+pub fn transpose(in: *Matrix, out: *Matrix) void {
+    // swap rows and columns
+    out.rows = in.cols;
+    out.cols = in.rows;
+    var i: usize = 0;
+    while (i < in.rows) : (i += 1) {
+        var j: usize = 0;
+        while (j < in.cols) : (j += 1) {
+            out.set(j, i, in.at(i, j));
+        }
+    }
+}
+
 pub fn accumulate(acc: []f32, addend: []f32) void {
     sum(acc, addend, acc);
 }
@@ -79,23 +97,5 @@ pub const Matrix = struct {
     pub fn set(self: Matrix, i: usize, j: usize, value: f32) void {
         var index = self.get_offset(i, j);
         self.data[index] = value;
-    }
-
-    /// Sets the resulting transposed matrix
-    /// to `out`.
-    ///
-    /// In-place transposition is a non-trivial problem:
-    /// https://en.wikipedia.org/wiki/In-place_matrix_transposition
-    pub fn transpose(self: *Matrix, out: *Matrix) void {
-        // swap rows and columns
-        out.rows = self.cols;
-        out.cols = self.rows;
-        var i: usize = 0;
-        while (i < self.rows) : (i += 1) {
-            var j: usize = 0;
-            while (j < self.cols) : (j += 1) {
-                out.set(j, i, self.at(i, j));
-            }
-        }
     }
 };
