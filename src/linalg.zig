@@ -53,7 +53,7 @@ pub const Matrix = struct {
     /// to the vector (left multiplication),
     /// assuming correct dimensions.
     /// Writes the result to out
-    pub fn apply(self: Matrix, vec: []f32, out: []f32) void {
+    pub fn apply(self: Matrix, vec: []const f32, out: []f32) void {
         var i: usize = 0;
         while (i < self.rows) : (i += 1) {
             var acc: f32 = 0;
