@@ -56,8 +56,8 @@ test "feedforward test" {
     };
 
     var w_2 = [_]f32{
-        1, 0,
-        0, 1,
+        -1, 0,
+        0,  1,
     };
     var b_2 = [_]f32{
         0.2,
@@ -86,6 +86,7 @@ test "feedforward test" {
     var output = [_]f32{ 0, 0 };
     network.feedforward(&output);
 
-    var expected_out = [_]f32{ 0.6996551604890665, 0.6996551604890665 };
-    try std.testing.expectEqualSlices(f32, &expected_out, &output);
+    var expected_out = [_]f32{ 0.3903940131009935, 0.6996551604890665 };
+    try std.testing.expectApproxEqRel(expected_out[0], output[0], 1e-6);
+    try std.testing.expectApproxEqRel(expected_out[1], output[1], 1e-6);
 }
