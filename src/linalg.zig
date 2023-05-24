@@ -39,12 +39,6 @@ pub fn accumulate(acc: []f32, addend: []f32) void {
     sum(acc, addend, acc);
 }
 
-fn swap(arr: []f32, i: usize, j: usize) void {
-    var val = arr[i];
-    arr[i] = arr[j];
-    arr[j] = val;
-}
-
 pub const Matrix = struct {
     data: []f32,
     rows: usize,
