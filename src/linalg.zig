@@ -10,10 +10,19 @@ pub fn inner_product(vec1: []f32, vec2: []f32) f32 {
     return result;
 }
 
+/// Add `vec1` and `vec2`, store result in `out`
 pub fn sum(vec1: []f32, vec2: []f32, out: []f32) void {
     for (vec1) |val, i| {
         const other_val = vec2[i];
         out[i] = val + other_val;
+    }
+}
+
+/// Subtract `vec2` from `vec1`, store result in `out`
+pub fn subtract(vec1: []f32, vec2: []f32, out: []f32) void {
+    for (vec1) |val, i| {
+        const other_val = vec2[i];
+        out[i] = val - other_val;
     }
 }
 
