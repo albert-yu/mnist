@@ -17,6 +17,17 @@ pub fn sum(vec1: []f32, vec2: []f32, out: []f32) void {
     }
 }
 
+/// Computes Hadamard product (element-wise multiplication)
+///
+/// Assumes `out` is allocated to be the same length as both
+/// `vec1` and `vec2`.
+pub fn hadamard_product(vec1: []f32, vec2: []f32, out: []f32) void {
+    for (vec1) |el1, i| {
+        const el2 = vec2[i];
+        out[i] = el1 * el2;
+    }
+}
+
 /// Sets the resulting transposed matrix
 /// to `out`.
 ///
