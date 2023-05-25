@@ -24,10 +24,14 @@ pub const NetworkLayer = struct {
     }
 };
 
+pub const GradientResult = struct {
+    biases: []f32,
+    weights: []linalg.Matrix,
+};
+
 pub const Network = struct {
     /// Includes output layer, excludes input layer
     layers: []NetworkLayer,
-    input_layer: []f32,
 
     /// Excludes input layer
     pub fn layer_count(self: Network) usize {
@@ -39,16 +43,25 @@ pub const Network = struct {
         return self.layers[i].activations;
     }
 
-    pub fn feedforward(self: Network) void {
+    pub fn output_layer(self: Network) []f32 {
+        return self.activations_at(self.layer_count() - 1);
+    }
+
+    pub fn feedforward(self: Network, input_layer: []f32) void {
         for (self.layers) |layer, i| {
             if (i == 0) {
-                layer.forward_pass(self.input_layer);
+                layer.forward_pass(input_layer);
             } else {
                 var prev_layer_activations = self.activations_at(i - 1);
                 layer.forward_pass(prev_layer_activations);
             }
         }
     }
+
+    // pub fn backprop(self: Network, out: GradientResult) void {
+    //     self.feedforward();
+    //     var output = self.output_layer();
+    // }
 };
 
 test "feedforward test" {
@@ -103,11 +116,10 @@ test "feedforward test" {
     };
     var network = Network{
         .layers = &layers,
-        .input_layer = &input_layer,
     };
-    network.feedforward();
+    network.feedforward(&input_layer);
 
-    var output = network.activations_at(network.layer_count() - 1);
+    var output = network.output_layer();
     var expected_out = [_]f32{ 0.3903940131009935, 0.6996551604890665 };
     try std.testing.expectApproxEqRel(expected_out[0], output[0], 1e-6);
     try std.testing.expectApproxEqRel(expected_out[1], output[1], 1e-6);
