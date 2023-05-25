@@ -42,7 +42,7 @@ pub fn hadamard_product(vec1: []f32, vec2: []f32, out: []f32) void {
 ///
 /// In-place transposition is a non-trivial problem:
 /// https://en.wikipedia.org/wiki/In-place_matrix_transposition
-pub fn transpose(in: *Matrix, out: *Matrix) void {
+pub fn transpose(in: Matrix, out: *Matrix) void {
     // swap rows and columns
     out.rows = in.cols;
     out.cols = in.rows;
