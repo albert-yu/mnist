@@ -25,9 +25,11 @@ pub const NetworkLayer = struct {
 };
 
 pub const Network = struct {
+    /// Includes output layer, excludes input layer
     layers: []NetworkLayer,
     input_layer: []f32,
 
+    /// Excludes input layer
     pub fn layer_count(self: Network) usize {
         return self.layers.len;
     }
