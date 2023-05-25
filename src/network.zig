@@ -43,6 +43,10 @@ pub const Network = struct {
         return self.layers[i].activations;
     }
 
+    pub fn z_vector_at(self: Network, i: usize) []f32 {
+        return self.layers[i].z_vector;
+    }
+
     pub fn output_layer(self: Network) []f32 {
         return self.activations_at(self.layer_count() - 1);
     }
@@ -58,10 +62,36 @@ pub const Network = struct {
         }
     }
 
-    // pub fn backprop(self: Network, out: GradientResult) void {
-    //     self.feedforward();
-    //     var output = self.output_layer();
-    // }
+    pub fn backprop(self: Network, input_layer: []const f32, y: []const f32, out: []GradientResult) void {
+        self.feedforward(input_layer);
+        var output = self.output_layer();
+        var allocator = std.heap.page_allocator;
+        var layer_size = y.len;
+
+        // get cost derivative (a - y)
+        var cost_derivative = try allocator.alloc(f32, layer_size);
+        defer allocator.free(cost_derivative);
+        linalg.subtract(output, y, cost_derivative);
+
+        // get sigmoid_prime
+        var sigmoid_primes = try allocator.alloc(f32, layer_size);
+        defer allocator.free(sigmoid_primes);
+        maths.apply_sigmoid_prime(self.z_vector_at(self.layer_count() - 1), sigmoid_primes);
+
+        var delta = out[out.len - 1].biases;
+        linalg.hadamard_product(cost_derivative, sigmoid_primes, delta);
+
+        // TODO: compute and assign to out.weights
+
+        var l: usize = self.layer_count() - 2;
+        while (l > 0) : (l -= 1) {
+            var z_vector = self.z_vector_at(l);
+            // reuse buffer
+            maths.apply_sigmoid_prime(z_vector, sigmoid_primes);
+            delta = out[l].biases;
+            // TODO: check that this doesn't overwrite results
+        }
+    }
 };
 
 test "feedforward test" {
