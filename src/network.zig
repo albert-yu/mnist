@@ -14,7 +14,7 @@ pub const NetworkLayer = struct {
         return self.weights.size();
     }
 
-    pub fn feedforward(self: NetworkLayer, x: []const f32) void {
+    pub fn forward_pass(self: NetworkLayer, x: []const f32) void {
         // w*x
         self.weights.apply(x, self.z_vector);
         // w*x + b
@@ -40,10 +40,10 @@ pub const Network = struct {
     pub fn feedforward(self: Network) void {
         for (self.layers) |layer, i| {
             if (i == 0) {
-                layer.feedforward(self.input_layer);
+                layer.forward_pass(self.input_layer);
             } else {
                 var prev_layer_activations = self.activations_at(i - 1);
-                layer.feedforward(prev_layer_activations);
+                layer.forward_pass(prev_layer_activations);
             }
         }
     }
