@@ -138,6 +138,8 @@ pub const Matrix = struct {
         // reuse buffer
         const vec = try allocator.alloc(f32, other.num_rows());
         const out_vec = try allocator.alloc(f32, other.num_rows());
+        defer allocator.free(vec);
+        defer allocator.free(out_vec);
         while (i < other.num_cols()) : (i += 1) {
             other.copy_col(i, vec);
             self.apply(vec, out_vec);
