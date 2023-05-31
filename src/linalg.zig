@@ -78,6 +78,16 @@ pub const Matrix = struct {
         return self.cols;
     }
 
+    pub fn print(self: Matrix) void {
+        for (self.data) |el, i| {
+            if (i % self.cols == 0) {
+                std.debug.print("\n", .{});
+            }
+            std.debug.print("{} ", .{el});
+        }
+        std.debug.print("\n", .{});
+    }
+
     /// Applies the matrix as a linear transformation
     /// to the vector (left multiplication),
     /// assuming correct dimensions.
@@ -127,10 +137,11 @@ pub const Matrix = struct {
         var allocator = std.heap.page_allocator;
         // reuse buffer
         const vec = try allocator.alloc(f32, other.num_rows());
+        const out_vec = try allocator.alloc(f32, other.num_rows());
         while (i < other.num_cols()) : (i += 1) {
             other.copy_col(i, vec);
-            self.apply(vec, vec);
-            out.set_col(i, vec);
+            self.apply(vec, out_vec);
+            out.set_col(i, out_vec);
         }
     }
 
