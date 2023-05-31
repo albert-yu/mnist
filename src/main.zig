@@ -77,11 +77,12 @@ test "sigmoid test" {
 }
 
 test "matrix multiplication test" {
-    var data = [_]f32{
+    const mat_t = f32;
+    var data = [_]mat_t{
         1, 2, 3,
         3, 1, 4,
     };
-    var data_other = [_]f32{
+    var data_other = [_]mat_t{
         1, 1,
         2, 1,
         2, 5,
@@ -97,7 +98,7 @@ test "matrix multiplication test" {
         .rows = 3,
         .cols = 2,
     };
-    var out_data = [_]f32{0} ** 4;
+    var out_data = [_]mat_t{0} ** 4;
     var out_matrix = lin.Matrix{
         .data = &out_data,
         .rows = 2,
@@ -105,9 +106,9 @@ test "matrix multiplication test" {
     };
 
     try matrix.multiply(matrix_other, out_matrix);
-    var expected_out_data = [_]f32{
+    var expected_out_data = [_]mat_t{
         11, 18,
         13, 24,
     };
-    try std.testing.expectEqualSlices(f32, &expected_out_data, out_matrix.data);
+    try std.testing.expectEqualSlices(mat_t, &expected_out_data, out_matrix.data);
 }
