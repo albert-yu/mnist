@@ -78,18 +78,21 @@ pub const Network = struct {
         defer allocator.free(sigmoid_primes);
         maths.apply_sigmoid_prime(self.z_vector_at(self.layer_count() - 1), sigmoid_primes);
 
+        // save product to output biases (already allocated)
+        linalg.hadamard_product(cost_derivative, sigmoid_primes, out[out.len - 1].biases);
         var delta = out[out.len - 1].biases;
-        linalg.hadamard_product(cost_derivative, sigmoid_primes, delta);
 
-        // TODO: compute and assign to out.weights
+        // transpose weights
+        // var last_activations = self.activations_at(self.layer_count() - 2);
+
+        // var transposed_activations = try allocator.alloc(f32, last_activations.len);
 
         var l: usize = self.layer_count() - 2;
-        while (l > 0) : (l -= 1) {
+        while (l >= 0) : (l -= 1) {
             var z_vector = self.z_vector_at(l);
             // reuse buffer
             maths.apply_sigmoid_prime(z_vector, sigmoid_primes);
             delta = out[l].biases;
-            // TODO: check that this doesn't overwrite results
         }
     }
 };

@@ -1,3 +1,4 @@
+const std = @import("std");
 /// Computes inner (dot) product.
 ///
 /// Input vectors assumed to be of equal length.
@@ -69,6 +70,14 @@ pub const Matrix = struct {
         return self.data.len;
     }
 
+    pub fn num_rows(self: Matrix) usize {
+        return self.rows;
+    }
+
+    pub fn num_cols(self: Matrix) usize {
+        return self.cols;
+    }
+
     /// Applies the matrix as a linear transformation
     /// to the vector (left multiplication),
     /// assuming correct dimensions.
@@ -84,6 +93,44 @@ pub const Matrix = struct {
                 acc += value * vec_value;
             }
             out[i] = acc;
+        }
+    }
+
+    pub fn copy_col(self: Matrix, index: usize, out: []f32) void {
+        if (index > self.num_cols()) {
+            // silent no-op
+            return;
+        }
+        var row_index: usize = 0;
+        while (row_index < self.num_rows()) : (row_index += 1) {
+            out[row_index] = self.at(row_index, index);
+        }
+    }
+
+    pub fn set_col(self: Matrix, index: usize, in: []f32) void {
+        if (index > self.num_rows()) {
+            return;
+        }
+        var row_index: usize = 0;
+        while (row_index < self.num_rows()) : (row_index += 1) {
+            self.set(row_index, index, in[row_index]);
+        }
+    }
+
+    /// Multiples two matrices, stores result in `out`.
+    /// Assumes `out` is properly allocated.
+    pub fn multiply(self: Matrix, other: Matrix, out: Matrix) error{ MatrixDimensionError, OutOfMemory }!void {
+        if (self.num_cols() != other.num_rows()) {
+            return error.MatrixDimensionError;
+        }
+        var i: usize = 0;
+        var allocator = std.heap.page_allocator;
+        // reuse buffer
+        const vec = try allocator.alloc(f32, other.num_rows());
+        while (i < other.num_cols()) : (i += 1) {
+            other.copy_col(i, vec);
+            self.apply(vec, vec);
+            out.set_col(i, vec);
         }
     }
 

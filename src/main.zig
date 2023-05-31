@@ -75,3 +75,39 @@ test "sigmoid test" {
     try std.testing.expectApproxEqRel(out[0], 0.5, err_tolerance);
     try std.testing.expectApproxEqRel(out[1], 0.731058578630074, err_tolerance);
 }
+
+test "matrix multiplication test" {
+    var data = [_]f32{
+        1, 2, 3,
+        3, 1, 4,
+    };
+    var data_other = [_]f32{
+        1, 1,
+        2, 1,
+        2, 5,
+    };
+    var matrix = lin.Matrix{
+        .data = &data,
+        .rows = 2,
+        .cols = 3,
+    };
+
+    var matrix_other = lin.Matrix{
+        .data = &data_other,
+        .rows = 3,
+        .cols = 2,
+    };
+    var out_data = [_]f32{0} ** 4;
+    var out_matrix = lin.Matrix{
+        .data = &out_data,
+        .rows = 2,
+        .cols = 2,
+    };
+
+    try matrix.multiply(matrix_other, out_matrix);
+    var expected_out_data = [_]f32{
+        11, 18,
+        13, 24,
+    };
+    try std.testing.expectEqualSlices(f32, &expected_out_data, out_matrix.data);
+}
