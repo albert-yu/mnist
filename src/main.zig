@@ -105,7 +105,7 @@ test "matrix multiplication test" {
         .cols = 2,
     };
 
-    try matrix.multiply(matrix_other, out_matrix);
+    try matrix.multiply(matrix_other, &out_matrix);
     var expected_out_data = [_]mat_t{
         11, 18,
         13, 24,

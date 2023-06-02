@@ -78,19 +78,50 @@ pub const Network = struct {
         defer allocator.free(sigmoid_primes);
         maths.apply_sigmoid_prime(self.z_vector_at(self.layer_count() - 1), sigmoid_primes);
 
+        var out_ptr = out[out.len - 1];
+
         // save product to output biases (already allocated)
-        linalg.hadamard_product(cost_derivative, sigmoid_primes, out[out.len - 1].biases);
-        var delta = out[out.len - 1].biases;
+        linalg.hadamard_product(cost_derivative, sigmoid_primes, out_ptr.biases);
+        var delta = out_ptr.biases;
 
-        // transpose weights
-        // var last_activations = self.activations_at(self.layer_count() - 2);
+        // transpose activations[-2]
+        var prev_activations = self.activations_at(self.layer_count() - 2);
 
-        // var transposed_activations = try allocator.alloc(f32, last_activations.len);
+        if (delta.len != prev_activations.len) {
+            std.debug.print("Something is wrong");
+        }
+
+        var activations_transposed = try allocator.alloc(f32, prev_activations.len);
+        defer allocator.free(activations_transposed);
+        var activations_matrix = linalg.Matrix{
+            .data = &prev_activations,
+            .rows = prev_activations.len,
+            .cols = 1,
+        };
+        var activations_transposed_mat = linalg.Matrix{
+            .data = &activations_transposed,
+            .rows = 1,
+            .cols = prev_activations.len,
+        };
+
+        linalg.transpose(activations_matrix, &activations_transposed_mat);
+        // store delta into a matrix
+        var delta_col_vec = linalg.Matrix{
+            .data = &delta,
+            .rows = delta.len,
+            .cols = 1,
+        };
+
+        // delta * activations[-2] becomes delta.len x activations.len
+        // dimensional matrix, which are the weights
+        var out_matrix_ptr = out_ptr.weights[-1];
+
+        delta_col_vec.multiply(activations_transposed_mat, &out_matrix_ptr);
 
         var l: usize = self.layer_count() - 2;
         while (l >= 0) : (l -= 1) {
             var z_vector = self.z_vector_at(l);
-            // reuse buffer
+            // reuse buffers
             maths.apply_sigmoid_prime(z_vector, sigmoid_primes);
             delta = out[l].biases;
         }

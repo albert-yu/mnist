@@ -128,11 +128,14 @@ pub const Matrix = struct {
     }
 
     /// Multiples two matrices, stores result in `out`.
-    /// Assumes `out` is properly allocated.
-    pub fn multiply(self: Matrix, other: Matrix, out: Matrix) error{ MatrixDimensionError, OutOfMemory }!void {
+    /// Assumes `out` is properly allocated, but will set
+    /// the correct rows and cols.
+    pub fn multiply(self: Matrix, other: Matrix, out: *Matrix) error{ MatrixDimensionError, OutOfMemory }!void {
         if (self.num_cols() != other.num_rows()) {
             return error.MatrixDimensionError;
         }
+        out.rows = self.num_rows();
+        out.cols = other.num_cols();
         var i: usize = 0;
         var allocator = std.heap.page_allocator;
         // reuse buffer
