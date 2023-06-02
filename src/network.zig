@@ -112,20 +112,53 @@ pub const Network = struct {
             .cols = 1,
         };
 
-        // delta * activations[-2] becomes delta.len x activations.len
+        // delta (dot) activations[-2] becomes delta.len x activations.len
         // dimensional matrix, which are the weights
         var out_weight_matrix = out_ptr.weights;
-
         delta_col_vec.multiply(activations_transposed_mat, &out_weight_matrix);
 
         var l: usize = self.layer_count() - 2;
         while (l >= 0) : (l -= 1) {
             out_ptr = out[l];
             out_weight_matrix = out_ptr.weights;
+
+            // sigmoid(z)
             var z_vector = self.z_vector_at(l);
-            // reuse buffers
-            maths.apply_sigmoid_prime(z_vector, sigmoid_primes);
-            delta = out[l].biases;
+            var sigmoid_primes_buf = try allocator.alloc(f32, z_vector.len);
+            defer allocator.free(sigmoid_primes_buf);
+            maths.apply_sigmoid_prime(z_vector, sigmoid_primes_buf);
+
+            // delta = weights[l+1].transpose() (dot) delta[l+1] (*) sigmoid_prime(z)
+            var weight_ahead = out[l + 1].weights;
+            var weight_ahead_t_data = try allocator.alloc(f32, weight_ahead.num_rows() * weight_ahead.num_cols());
+            var weight_ahead_t = linalg.Matrix{
+                .data = &weight_ahead_t_data,
+                .rows = 0,
+                .cols = 0,
+            };
+            linalg.transpose(weight_ahead, &weight_ahead_t);
+
+            var delta_buf = try allocator.alloc(f32, z_vector.len);
+            defer allocator.free(delta_buf);
+
+            var delta_ahead = out[l + 1].biases;
+            weight_ahead_t.apply(delta_ahead, &delta_buf);
+
+            linalg.hadamard_product(delta_buf, sigmoid_primes_buf, out_ptr.biases);
+            var activations_behind_data = self.activations_at(l - 1);
+            var activations_behind_t = linalg.Matrix{
+                .data = &activations_behind_data,
+                .rows = 1,
+                .cols = activations_behind_data.len,
+            };
+
+            var delta_current = out_ptr.biases;
+            var delta_vec = linalg.Matrix{
+                .data = &delta_current,
+                .rows = delta_current.len,
+                .cols = 1,
+            };
+            delta_vec.multiply(activations_behind_t, out_ptr.weights);
         }
     }
 };
