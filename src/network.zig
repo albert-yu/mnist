@@ -26,7 +26,7 @@ pub const NetworkLayer = struct {
 
 pub const GradientResult = struct {
     biases: []f32,
-    weights: []linalg.Matrix,
+    weights: linalg.Matrix,
 };
 
 pub const Network = struct {
@@ -114,12 +114,14 @@ pub const Network = struct {
 
         // delta * activations[-2] becomes delta.len x activations.len
         // dimensional matrix, which are the weights
-        var out_matrix_ptr = out_ptr.weights[-1];
+        var out_weight_matrix = out_ptr.weights;
 
-        delta_col_vec.multiply(activations_transposed_mat, &out_matrix_ptr);
+        delta_col_vec.multiply(activations_transposed_mat, &out_weight_matrix);
 
         var l: usize = self.layer_count() - 2;
         while (l >= 0) : (l -= 1) {
+            out_ptr = out[l];
+            out_weight_matrix = out_ptr.weights;
             var z_vector = self.z_vector_at(l);
             // reuse buffers
             maths.apply_sigmoid_prime(z_vector, sigmoid_primes);
