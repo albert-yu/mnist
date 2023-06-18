@@ -19,17 +19,17 @@ pub fn main() !void {
     defer train_labels_file.close();
 
     const size = try train_labels_file.getEndPos();
-    var buffer = try allocator.alloc(u8, size);
-    defer allocator.free(buffer);
-    _ = try train_labels_file.read(buffer);
+    var train_labels_buffer = try allocator.alloc(u8, size);
+    defer allocator.free(train_labels_buffer);
+    _ = try train_labels_file.read(train_labels_buffer);
 
     // read first labels
     const count_offset = 4;
-    const label_count = get_double_word(buffer, count_offset);
+    const label_count = get_double_word(train_labels_buffer, count_offset);
 
     std.debug.print("label count: {}\n", .{label_count});
     const start_index = 8;
-    const labels = buffer[start_index..];
+    const labels = train_labels_buffer[start_index..];
 
     for (range(label_count)) |_, i| {
         if (i >= 20) {
