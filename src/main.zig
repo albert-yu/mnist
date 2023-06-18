@@ -13,6 +13,21 @@ fn get_double_word(bytes: []u8, offset: usize) u32 {
     return std.mem.readInt(u32, slice, std.builtin.Endian.Big);
 }
 
+fn console_print_image(img_bytes: []u8, num_rows: usize) void {
+    // console print
+    for (img_bytes) |pixel, i| {
+        if (i % num_rows == 0) {
+            std.debug.print("\n", .{});
+        }
+        if (pixel == 0) {
+            std.debug.print("0", .{});
+        } else {
+            std.debug.print("1", .{});
+        }
+    }
+    std.debug.print("\n", .{});
+}
+
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const train_labels_file = try std.fs.cwd().openFile("data/train-labels.idx1-ubyte", .{});
@@ -56,17 +71,7 @@ pub fn main() !void {
     const img_start_offset = 16;
     const images = train_images_buffer[img_start_offset..];
     const first_image = images[0..(num_rows * num_cols)];
-    // console print
-    for (first_image) |pixel, i| {
-        if (pixel == 0) {
-            std.debug.print("0", .{});
-        } else {
-            std.debug.print("1", .{});
-        }
-        if (i % num_rows == 0) {
-            std.debug.print("\n", .{});
-        }
-    }
+    console_print_image(first_image, num_rows);
 }
 
 const err_tolerance = 1e-9;
