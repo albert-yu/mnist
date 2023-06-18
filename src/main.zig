@@ -3,8 +3,26 @@ const lin = @import("linalg.zig");
 const maths = @import("maths.zig");
 // const nn = @import("network.zig");
 
+/// https://stackoverflow.com/a/73020142
+fn range(len: usize) []const void {
+    return @as([*]void, undefined)[0..len];
+}
+
 pub fn main() !void {
-    // do nothing
+    const allocator = std.heap.page_allocator;
+    const file = try std.fs.cwd().openFile("data/train-labels.idx1-ubyte", .{});
+    defer file.close();
+
+    const size = try file.getEndPos();
+    var buffer = try allocator.alloc(u8, size);
+    defer allocator.free(buffer);
+    _ = try file.read(buffer);
+
+    // read first few bytes
+    for (range(5)) |_, i| {
+        const val = buffer[i];
+        std.debug.print("0x{x}\n", .{val});
+    }
 }
 
 const err_tolerance = 1e-9;
