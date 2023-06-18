@@ -24,14 +24,19 @@ pub fn main() !void {
     _ = try file.read(buffer);
 
     // read first labels
-    const size_offset = 4;
-    const label_count = get_double_word(buffer, size_offset);
+    const count_offset = 4;
+    const label_count = get_double_word(buffer, count_offset);
 
     std.debug.print("label count: {}\n", .{label_count});
-    // for (range(16)) |_, i| {
-    //     const val = buffer[i];
-    //     std.debug.print("0x{x}\n", .{val});
-    // }
+    const start_index = 8;
+
+    for (range(label_count)) |_, i| {
+        if (i >= 20) {
+            break;
+        }
+        const val = buffer[start_index + i];
+        std.debug.print("{}\n", .{val});
+    }
 }
 
 const err_tolerance = 1e-9;
