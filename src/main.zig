@@ -29,12 +29,13 @@ pub fn main() !void {
 
     std.debug.print("label count: {}\n", .{label_count});
     const start_index = 8;
+    const labels = buffer[start_index..];
 
     for (range(label_count)) |_, i| {
         if (i >= 20) {
             break;
         }
-        const val = buffer[start_index + i];
+        const val = labels[i];
         std.debug.print("{}\n", .{val});
     }
 }
