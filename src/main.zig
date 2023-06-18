@@ -53,6 +53,20 @@ pub fn main() !void {
     const num_rows = get_double_word(train_images_buffer, 8);
     const num_cols = get_double_word(train_images_buffer, 12);
     std.debug.print("rows: {}, cols: {}\n", .{ num_rows, num_cols });
+    const img_start_offset = 16;
+    const images = train_images_buffer[img_start_offset..];
+    const first_image = images[0..(num_rows * num_cols)];
+    // console print
+    for (first_image) |pixel, i| {
+        if (pixel == 0) {
+            std.debug.print("0", .{});
+        } else {
+            std.debug.print("1", .{});
+        }
+        if (i % num_rows == 0) {
+            std.debug.print("\n", .{});
+        }
+    }
 }
 
 const err_tolerance = 1e-9;
