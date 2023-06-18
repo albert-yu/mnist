@@ -65,7 +65,7 @@ pub const Network = struct {
     pub fn backprop(self: Network, input_layer: []const f32, y: []const f32, out: []GradientResult) void {
         self.feedforward(input_layer);
         var output = self.output_layer();
-        var allocator = std.heap.page_allocator;
+        var allocator = std.heap.GeneralPurposeAllocator(.{}){};
         var layer_size = y.len;
 
         // get cost derivative (a - y)
@@ -117,7 +117,9 @@ pub const Network = struct {
         var out_weight_matrix = out_ptr.weights;
         delta_col_vec.multiply(activations_transposed_mat, &out_weight_matrix);
 
-        var l: usize = self.layer_count() - 2;
+        // self.layer_count() excludes input layer, so + 1 to adjust
+        const layer_count_adjusted = self.layer_count() - 1;
+        var l: usize = layer_count_adjusted;
         while (l >= 0) : (l -= 1) {
             out_ptr = out[l];
             out_weight_matrix = out_ptr.weights;

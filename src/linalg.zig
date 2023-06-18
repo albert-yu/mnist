@@ -137,7 +137,7 @@ pub const Matrix = struct {
         out.rows = self.num_rows();
         out.cols = other.num_cols();
         var i: usize = 0;
-        var allocator = std.heap.page_allocator;
+        var allocator = std.heap.GeneralPurposeAllocator(.{}){};
         // reuse buffer
         const vec = try allocator.alloc(f32, other.num_rows());
         const out_vec = try allocator.alloc(f32, other.num_rows());

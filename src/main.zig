@@ -1,7 +1,7 @@
 const std = @import("std");
 const lin = @import("linalg.zig");
 const maths = @import("maths.zig");
-// const nn = @import("network.zig");
+const nn = @import("network.zig");
 
 /// https://stackoverflow.com/a/73020142
 fn range(len: usize) []const void {
@@ -28,8 +28,28 @@ fn console_print_image(img_bytes: []u8, num_rows: usize) void {
     std.debug.print("\n", .{});
 }
 
+/// Writes the decimal digit 0-9 to a buffer
+/// of size 10, where the value at the position
+/// corresponds to whether the current digit
+/// is represented.
+///
+/// For example, `4` is represented as
+///
+/// ```
+/// [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]
+///  0  1  2  3  4  5  6  7  8  9
+/// ```
+fn write_digit(digit: u8, buf: *[10]f32) void {
+    // clear all
+    for (buf) |_, i| {
+        buf[i] = 0;
+    }
+    buf[digit] = 1;
+}
+
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    const allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    defer allocator.deinit();
     const train_labels_file = try std.fs.cwd().openFile("data/train-labels.idx1-ubyte", .{});
     defer train_labels_file.close();
 
@@ -40,19 +60,11 @@ pub fn main() !void {
 
     // read training labels
     const count_offset = 4;
-    const label_count = get_double_word(train_labels_buffer, count_offset);
+    const train_count = get_double_word(train_labels_buffer, count_offset);
 
-    std.debug.print("label count: {}\n", .{label_count});
+    std.debug.print("label count: {}\n", .{train_count});
     const start_index = 8;
     const labels = train_labels_buffer[start_index..];
-
-    for (range(label_count)) |_, i| {
-        if (i >= 20) {
-            break;
-        }
-        const val = labels[i];
-        std.debug.print("{}\n", .{val});
-    }
 
     // read training images
     const file_train_img = try std.fs.cwd().openFile("data/train-images.idx3-ubyte", .{});
@@ -64,14 +76,75 @@ pub fn main() !void {
     _ = try file_train_img.read(train_images_buffer);
 
     // can read image count from file, but should be exactly the same as labels
-    // const train_image_count = label_count;
     const num_rows = get_double_word(train_images_buffer, 8);
     const num_cols = get_double_word(train_images_buffer, 12);
     std.debug.print("rows: {}, cols: {}\n", .{ num_rows, num_cols });
     const img_start_offset = 16;
     const images = train_images_buffer[img_start_offset..];
-    const first_image = images[0..(num_rows * num_cols)];
-    console_print_image(first_image, num_rows);
+
+    const image_size = num_rows * num_cols;
+
+    // construct the network
+    const POSSIBLE_DIGITS = 10;
+
+    const HIDDEN_LAYER_SIZE = 15;
+    // init hidden layer
+    var hidden_layer_matrix_buf = allocator.alloc(f32, HIDDEN_LAYER_SIZE * image_size);
+    defer allocator.free(hidden_layer_matrix_buf);
+
+    var hidden_layer = nn.NetworkLayer{
+        .weights = lin.Matrix{
+            .data = hidden_layer_matrix_buf,
+            .rows = HIDDEN_LAYER_SIZE,
+            .cols = image_size,
+        },
+        .biases = [_]f32{0} ** HIDDEN_LAYER_SIZE,
+        .z_vector = [_]f32{0} ** HIDDEN_LAYER_SIZE,
+        .activations = [_]f32{0} ** HIDDEN_LAYER_SIZE,
+    };
+
+    comptime var OUTPUT_LAYER_MATRIX_SIZE = POSSIBLE_DIGITS * HIDDEN_LAYER_SIZE;
+    var output_layer_buf = allocator.alloc(f32, OUTPUT_LAYER_MATRIX_SIZE);
+    defer allocator.free(output_layer_buf);
+
+    var output_layer = nn.NetworkLayer{
+        .weights = lin.Matrix{
+            .data = output_layer_buf,
+            .rows = POSSIBLE_DIGITS,
+            .cols = HIDDEN_LAYER_SIZE,
+        },
+        .biases = [_]f32{0} ** POSSIBLE_DIGITS,
+        .z_vector = [_]f32{0} ** POSSIBLE_DIGITS,
+        .activations = [_]f32{0} ** POSSIBLE_DIGITS,
+    };
+
+    // put layers together
+    var mnist_network = nn.Network{
+        .layers = []nn.NetworkLayer{
+            hidden_layer,
+            output_layer,
+        },
+    };
+
+    var results = []nn.GradientResult{
+        nn.GradientResult{},
+    };
+
+    // train the network
+    var expected_output_buf = [_]f32{0} ** POSSIBLE_DIGITS;
+    for (range(train_count)) |_, i| {
+        if (i >= 20) {
+            break;
+        }
+        // labeled digit
+        const digit = labels[i];
+        write_digit(digit, &expected_output_buf);
+
+        // digit image
+        const img_slice_start = i * image_size;
+        const img_slice = images[img_slice_start..image_size];
+        mnist_network.backprop(img_slice, expected_output_buf, results);
+    }
 }
 
 const err_tolerance = 1e-9;
