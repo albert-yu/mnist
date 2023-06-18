@@ -8,6 +8,11 @@ fn range(len: usize) []const void {
     return @as([*]void, undefined)[0..len];
 }
 
+fn get_double_word(bytes: []u8, offset: usize) u32 {
+    const slice = bytes[offset .. offset + 4][0..4];
+    return std.mem.readInt(u32, slice, std.builtin.Endian.Big);
+}
+
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const file = try std.fs.cwd().openFile("data/train-labels.idx1-ubyte", .{});
@@ -18,11 +23,15 @@ pub fn main() !void {
     defer allocator.free(buffer);
     _ = try file.read(buffer);
 
-    // read first few bytes
-    for (range(5)) |_, i| {
-        const val = buffer[i];
-        std.debug.print("0x{x}\n", .{val});
-    }
+    // read first labels
+    const size_offset = 4;
+    const label_count = get_double_word(buffer, size_offset);
+
+    std.debug.print("label count: {}\n", .{label_count});
+    // for (range(16)) |_, i| {
+    //     const val = buffer[i];
+    //     std.debug.print("0x{x}\n", .{val});
+    // }
 }
 
 const err_tolerance = 1e-9;
