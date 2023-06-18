@@ -15,13 +15,13 @@ fn get_double_word(bytes: []u8, offset: usize) u32 {
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
-    const file = try std.fs.cwd().openFile("data/train-labels.idx1-ubyte", .{});
-    defer file.close();
+    const train_labels_file = try std.fs.cwd().openFile("data/train-labels.idx1-ubyte", .{});
+    defer train_labels_file.close();
 
-    const size = try file.getEndPos();
+    const size = try train_labels_file.getEndPos();
     var buffer = try allocator.alloc(u8, size);
     defer allocator.free(buffer);
-    _ = try file.read(buffer);
+    _ = try train_labels_file.read(buffer);
 
     // read first labels
     const count_offset = 4;
