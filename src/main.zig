@@ -19,11 +19,11 @@ pub fn main() !void {
     defer train_labels_file.close();
 
     const size = try train_labels_file.getEndPos();
-    var train_labels_buffer = try allocator.alloc(u8, size);
+    const train_labels_buffer = try allocator.alloc(u8, size);
     defer allocator.free(train_labels_buffer);
     _ = try train_labels_file.read(train_labels_buffer);
 
-    // read first labels
+    // read training labels
     const count_offset = 4;
     const label_count = get_double_word(train_labels_buffer, count_offset);
 
@@ -38,6 +38,21 @@ pub fn main() !void {
         const val = labels[i];
         std.debug.print("{}\n", .{val});
     }
+
+    // read training images
+    const file_train_img = try std.fs.cwd().openFile("data/train-images.idx3-ubyte", .{});
+    defer file_train_img.close();
+
+    const train_im_file_size = try file_train_img.getEndPos();
+    const train_images_buffer = try allocator.alloc(u8, train_im_file_size);
+    defer allocator.free(train_images_buffer);
+    _ = try file_train_img.read(train_images_buffer);
+
+    // can read image count from file, but should be exactly the same as labels
+    // const train_image_count = label_count;
+    const num_rows = get_double_word(train_images_buffer, 8);
+    const num_cols = get_double_word(train_images_buffer, 12);
+    std.debug.print("rows: {}, cols: {}\n", .{ num_rows, num_cols });
 }
 
 const err_tolerance = 1e-9;
