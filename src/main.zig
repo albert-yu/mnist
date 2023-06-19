@@ -140,7 +140,30 @@ pub fn main() !void {
         .layers = &all_layers,
     };
 
-    var results = [_]nn.GradientResult{};
+    var biases_1 = try allocator.alloc(f32, HIDDEN_LAYER_SIZE);
+    var weights_1_data = try allocator.alloc(f32, HIDDEN_LAYER_SIZE * image_size);
+    var result_placeholder_1 = nn.GradientResult{
+        .biases = biases_1,
+        .weights = lin.Matrix{
+            .data = weights_1_data,
+            .rows = HIDDEN_LAYER_SIZE,
+            .cols = image_size,
+        },
+    };
+    var biases_2 = [_]f32{0} ** POSSIBLE_DIGITS;
+    var weights_2_data = [_]f32{0} ** (POSSIBLE_DIGITS * HIDDEN_LAYER_SIZE);
+    var result_placeholder_2 = nn.GradientResult{
+        .biases = &biases_2,
+        .weights = lin.Matrix{
+            .data = &weights_2_data,
+            .rows = POSSIBLE_DIGITS,
+            .cols = HIDDEN_LAYER_SIZE,
+        },
+    };
+    var results = [_]nn.GradientResult{
+        result_placeholder_1,
+        result_placeholder_2,
+    };
 
     // train the network
     var expected_output_buf = [_]f32{0} ** POSSIBLE_DIGITS;
