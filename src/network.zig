@@ -51,7 +51,7 @@ pub const Network = struct {
         return self.activations_at(self.layer_count() - 1);
     }
 
-    pub fn feedforward(self: Network, input_layer: []f32) void {
+    pub fn feedforward(self: Network, input_layer: []const f32) void {
         for (self.layers) |layer, i| {
             if (i == 0) {
                 layer.forward_pass(input_layer);
@@ -62,11 +62,12 @@ pub const Network = struct {
         }
     }
 
-    pub fn backprop(self: Network, input_layer: []const f32, y: []const f32, out: []GradientResult) void {
+    pub fn backprop(self: Network, input_layer: []const f32, y: []const f32, out: []GradientResult) !void {
         self.feedforward(input_layer);
         var output = self.output_layer();
-        var allocator = std.heap.GeneralPurposeAllocator(.{}){};
-        var layer_size = y.len;
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        const allocator = gpa.allocator();
+        const layer_size = y.len;
 
         // get cost derivative (a - y)
         var cost_derivative = try allocator.alloc(f32, layer_size);
@@ -88,18 +89,18 @@ pub const Network = struct {
         var prev_activations = self.activations_at(self.layer_count() - 2);
 
         if (delta.len != prev_activations.len) {
-            std.debug.print("Something is wrong");
+            std.debug.print("Something is wrong", .{});
         }
 
         var activations_transposed = try allocator.alloc(f32, prev_activations.len);
         defer allocator.free(activations_transposed);
         var activations_matrix = linalg.Matrix{
-            .data = &prev_activations,
+            .data = prev_activations,
             .rows = prev_activations.len,
             .cols = 1,
         };
         var activations_transposed_mat = linalg.Matrix{
-            .data = &activations_transposed,
+            .data = activations_transposed,
             .rows = 1,
             .cols = prev_activations.len,
         };
@@ -107,7 +108,7 @@ pub const Network = struct {
         linalg.transpose(activations_matrix, &activations_transposed_mat);
         // store delta into a matrix
         var delta_col_vec = linalg.Matrix{
-            .data = &delta,
+            .data = delta,
             .rows = delta.len,
             .cols = 1,
         };
@@ -115,7 +116,7 @@ pub const Network = struct {
         // delta (dot) activations[-2] becomes delta.len x activations.len
         // dimensional matrix, which are the weights
         var out_weight_matrix = out_ptr.weights;
-        delta_col_vec.multiply(activations_transposed_mat, &out_weight_matrix);
+        try delta_col_vec.multiply(activations_transposed_mat, &out_weight_matrix);
 
         // self.layer_count() excludes input layer, so + 1 to adjust
         const layer_count_adjusted = self.layer_count() - 1;
@@ -134,7 +135,7 @@ pub const Network = struct {
             var weight_ahead = out[l + 1].weights;
             var weight_ahead_t_data = try allocator.alloc(f32, weight_ahead.num_rows() * weight_ahead.num_cols());
             var weight_ahead_t = linalg.Matrix{
-                .data = &weight_ahead_t_data,
+                .data = weight_ahead_t_data,
                 .rows = 0,
                 .cols = 0,
             };
@@ -144,23 +145,23 @@ pub const Network = struct {
             defer allocator.free(delta_buf);
 
             var delta_ahead = out[l + 1].biases;
-            weight_ahead_t.apply(delta_ahead, &delta_buf);
+            weight_ahead_t.apply(delta_ahead, delta_buf);
 
             linalg.hadamard_product(delta_buf, sigmoid_primes_buf, out_ptr.biases);
             var activations_behind_data = self.activations_at(l - 1);
             var activations_behind_t = linalg.Matrix{
-                .data = &activations_behind_data,
+                .data = activations_behind_data,
                 .rows = 1,
                 .cols = activations_behind_data.len,
             };
 
             var delta_current = out_ptr.biases;
             var delta_vec = linalg.Matrix{
-                .data = &delta_current,
+                .data = delta_current,
                 .rows = delta_current.len,
                 .cols = 1,
             };
-            delta_vec.multiply(activations_behind_t, out_ptr.weights);
+            try delta_vec.multiply(activations_behind_t, &out_ptr.weights);
         }
     }
 };

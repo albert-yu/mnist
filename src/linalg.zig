@@ -12,7 +12,7 @@ pub fn inner_product(vec1: []f32, vec2: []f32) f32 {
 }
 
 /// Add `vec1` and `vec2`, store result in `out`
-pub fn sum(vec1: []f32, vec2: []f32, out: []f32) void {
+pub fn sum(vec1: []f32, vec2: []const f32, out: []f32) void {
     for (vec1) |val, i| {
         const other_val = vec2[i];
         out[i] = val + other_val;
@@ -20,7 +20,7 @@ pub fn sum(vec1: []f32, vec2: []f32, out: []f32) void {
 }
 
 /// Subtract `vec2` from `vec1`, store result in `out`
-pub fn subtract(vec1: []f32, vec2: []f32, out: []f32) void {
+pub fn subtract(vec1: []f32, vec2: []const f32, out: []f32) void {
     for (vec1) |val, i| {
         const other_val = vec2[i];
         out[i] = val - other_val;
@@ -88,7 +88,7 @@ pub const Matrix = struct {
         std.debug.print("\n", .{});
     }
 
-    /// Applies the matrix as a linear transformation
+    /// Applies the matrix as a ar transformation
     /// to the vector (left multiplication),
     /// assuming correct dimensions.
     /// Writes the result to out
@@ -137,7 +137,8 @@ pub const Matrix = struct {
         out.rows = self.num_rows();
         out.cols = other.num_cols();
         var i: usize = 0;
-        var allocator = std.heap.GeneralPurposeAllocator(.{}){};
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        const allocator = gpa.allocator();
         // reuse buffer
         const vec = try allocator.alloc(f32, other.num_rows());
         const out_vec = try allocator.alloc(f32, other.num_rows());
@@ -176,3 +177,101 @@ pub const Matrix = struct {
         self.data[index] = value;
     }
 };
+
+const err_tolerance = 1e-9;
+
+test "matrix application test" {
+    var matrix_data = [_]f32{
+        1, 2, 1,
+        4, 3, 4,
+    };
+    var matrix = Matrix{
+        .data = &matrix_data,
+        .rows = 2,
+        .cols = 3,
+    };
+    var vec = [_]f32{ 3, 2, 1 };
+    var result = [_]f32{0} ** 2;
+    matrix.apply(&vec, &result);
+    // (8 22)^T
+    var expected_0: f32 = 8;
+    var expected_1: f32 = 22;
+    try std.testing.expectApproxEqRel(expected_0, result[0], err_tolerance);
+    try std.testing.expectApproxEqRel(expected_1, result[1], err_tolerance);
+}
+
+test "accumulate test" {
+    var vector = [_]f32{ 1, 2 };
+    var addend = [_]f32{ 2, 3 };
+    accumulate(&vector, &addend);
+    var expected_0: f32 = 3;
+    var expected_1: f32 = 5;
+    try std.testing.expectApproxEqRel(expected_0, vector[0], err_tolerance);
+    try std.testing.expectApproxEqRel(expected_1, vector[1], err_tolerance);
+}
+
+test "transpose test" {
+    var matrix_data = [_]f32{
+        1, 2, 3,
+        4, 5, 6,
+    };
+    var matrix: Matrix = .{
+        .data = &matrix_data,
+        .rows = 2,
+        .cols = 3,
+    };
+    var t_matrix_init = [_]f32{0} ** matrix_data.len;
+    var t_matrix = Matrix{
+        .data = &t_matrix_init,
+        .rows = 0,
+        .cols = 0,
+    };
+    transpose(matrix, &t_matrix);
+    var expected_rows: usize = 3;
+    var expected_cols: usize = 2;
+    try std.testing.expectEqual(expected_rows, t_matrix.rows);
+    try std.testing.expectEqual(expected_cols, t_matrix.cols);
+    var result_data = [_]f32{
+        1, 4,
+        2, 5,
+        3, 6,
+    };
+    try std.testing.expectEqualSlices(f32, &result_data, t_matrix.data);
+}
+
+test "matrix multiplication test" {
+    const mat_t = f32;
+    var data = [_]mat_t{
+        1, 2, 3,
+        3, 1, 4,
+    };
+    var data_other = [_]mat_t{
+        1, 1,
+        2, 1,
+        2, 5,
+    };
+    var matrix = Matrix{
+        .data = &data,
+        .rows = 2,
+        .cols = 3,
+    };
+
+    var matrix_other = Matrix{
+        .data = &data_other,
+        .rows = 3,
+        .cols = 2,
+    };
+    var out_data = [_]mat_t{0} ** 4;
+    var out_matrix = Matrix{
+        .data = &out_data,
+        .rows = 2,
+        .cols = 2,
+    };
+
+    try matrix.multiply(matrix_other, &out_matrix);
+    var expected_out_data = [_]mat_t{
+        11, 18,
+        13, 24,
+    };
+    try std.testing.expectEqualSlices(mat_t, &expected_out_data, out_matrix.data);
+}
