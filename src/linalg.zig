@@ -137,17 +137,16 @@ pub const Matrix = struct {
         out.rows = self.num_rows();
         out.cols = other.num_cols();
         var i: usize = 0;
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        const allocator = gpa.allocator();
-        // reuse buffer
-        const vec = try allocator.alloc(f32, other.num_rows());
-        const out_vec = try allocator.alloc(f32, other.num_rows());
-        defer allocator.free(vec);
-        defer allocator.free(out_vec);
-        while (i < other.num_cols()) : (i += 1) {
-            other.copy_col(i, vec);
-            self.apply(vec, out_vec);
-            out.set_col(i, out_vec);
+        while (i < out.num_rows()) : (i += 1) {
+            var j: usize = 0;
+            while (j < out.num_cols()) : (j += 1) {
+                var acc: f32 = 0;
+                var k: usize = 0;
+                while (k < self.num_cols()) : (k += 1) {
+                    acc += self.at(i, k) * other.at(k, j);
+                }
+                out.set(i, j, acc);
+            }
         }
     }
 
