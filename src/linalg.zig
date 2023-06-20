@@ -275,3 +275,43 @@ test "matrix multiplication test" {
     };
     try std.testing.expectEqualSlices(mat_t, &expected_out_data, out_matrix.data);
 }
+
+test "outer product test" {
+    const mat_t = f32;
+    var data = [_]mat_t{
+        1,
+        2,
+        3,
+        4,
+    };
+    var data_other = [_]mat_t{
+        1, 2, 3,
+    };
+    var matrix = Matrix{
+        .data = &data,
+        .rows = data.len,
+        .cols = 1,
+    };
+
+    var matrix_other = Matrix{
+        .data = &data_other,
+        .rows = 1,
+        .cols = data_other.len,
+    };
+    comptime var total_size = 4 * 3;
+    var out_data = [_]mat_t{0} ** total_size;
+    var out_matrix = Matrix{
+        .data = &out_data,
+        .rows = 4,
+        .cols = 3,
+    };
+
+    try matrix.multiply(matrix_other, &out_matrix);
+    var expected_out_data = [_]mat_t{
+        1, 2, 3,
+        2, 4, 6,
+        3, 6, 9,
+        4, 8, 12,
+    };
+    try std.testing.expectEqualSlices(mat_t, &expected_out_data, out_matrix.data);
+}
