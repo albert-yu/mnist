@@ -106,27 +106,6 @@ pub const Matrix = struct {
         }
     }
 
-    pub fn copy_col(self: Matrix, index: usize, out: []f32) void {
-        if (index > self.num_cols()) {
-            // silent no-op
-            return;
-        }
-        var row_index: usize = 0;
-        while (row_index < self.num_rows()) : (row_index += 1) {
-            out[row_index] = self.at(row_index, index);
-        }
-    }
-
-    pub fn set_col(self: Matrix, index: usize, in: []f32) void {
-        if (index > self.num_rows()) {
-            return;
-        }
-        var row_index: usize = 0;
-        while (row_index < self.num_rows()) : (row_index += 1) {
-            self.set(row_index, index, in[row_index]);
-        }
-    }
-
     /// Multiples two matrices, stores result in `out`.
     /// Assumes `out` is properly allocated, but will set
     /// the correct rows and cols.
