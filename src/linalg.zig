@@ -109,7 +109,7 @@ pub const Matrix = struct {
     /// Multiples two matrices, stores result in `out`.
     /// Assumes `out` is properly allocated, but will set
     /// the correct rows and cols.
-    pub fn multiply(self: Matrix, other: Matrix, out: *Matrix) error{ MatrixDimensionError, OutOfMemory }!void {
+    pub fn multiply(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
         if (self.num_cols() != other.num_rows()) {
             return error.MatrixDimensionError;
         }
