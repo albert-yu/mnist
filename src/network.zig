@@ -62,7 +62,7 @@ pub const Network = struct {
         }
     }
 
-    pub fn backprop(self: Network, input_layer: []const f32, y: []const f32, out: []GradientResult) !void {
+    pub fn backprop(self: Network, input_layer: []const f32, y: []const f32, out: []GradientResult) error{ LayerDimensionError, MatrixDimensionError, OutOfMemory }!void {
         self.feedforward(input_layer);
         var output = self.output_layer();
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -89,7 +89,8 @@ pub const Network = struct {
         var prev_activations = self.activations_at(self.layer_count() - 2);
 
         if (delta.len != prev_activations.len) {
-            std.debug.print("Something is wrong", .{});
+            std.debug.print("Error got different lengths, delta.len {}, prev_activations.len {}\n", .{ delta.len, prev_activations.len });
+            return error.LayerDimensionError;
         }
 
         var activations_transposed = try allocator.alloc(f32, prev_activations.len);
@@ -116,6 +117,7 @@ pub const Network = struct {
         // delta (dot) activations[-2] becomes delta.len x activations.len
         // dimensional matrix, which are the weights
         var out_weight_matrix = out_ptr.weights;
+        // std.debug.print("out length: {}, delta_rows: {}, activations len: {}\n", .{ out_weight_matrix.data.len, delta_col_vec.rows, activations_transposed_mat.data.len });
         try delta_col_vec.multiply(activations_transposed_mat, &out_weight_matrix);
 
         // self.layer_count() excludes input layer, so + 1 to adjust
