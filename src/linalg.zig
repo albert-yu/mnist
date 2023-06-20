@@ -293,3 +293,28 @@ test "outer product test" {
     };
     try std.testing.expectEqualSlices(mat_t, &expected_out_data, out_matrix.data);
 }
+
+test "inner product test" {
+    var data_a_t = [_]f32{
+        1, 2, 3,
+    };
+    var a_t = Matrix{
+        .data = &data_a_t,
+        .rows = 1,
+        .cols = data_a_t.len,
+    };
+    var a = Matrix{
+        .data = &data_a_t,
+        .rows = data_a_t.len,
+        .cols = 1,
+    };
+    var out_data = [_]f32{0};
+    var out = Matrix{
+        .data = &out_data,
+        .rows = 1,
+        .cols = 1,
+    };
+    try a_t.multiply(a, &out);
+    var expected_out_data = [_]f32{14};
+    try std.testing.expectEqualSlices(f32, &expected_out_data, out.data);
+}
