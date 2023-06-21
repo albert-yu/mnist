@@ -156,6 +156,37 @@ pub const Matrix = struct {
     }
 };
 
+pub fn alloc_matrix(allocator: std.mem.Allocator, rows: usize, cols: usize) error{OutOfMemory}!*Matrix {
+    var matrix = try allocator.create(Matrix);
+    matrix.data = try allocator.alloc(f32, rows * cols);
+    matrix.rows = rows;
+    matrix.cols = cols;
+    return matrix;
+}
+
+/// Copies the data input into allocated memory
+pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols: usize, data: []const f32) error{ DimensionsMismatch, OutOfMemory }!*Matrix {
+    if (rows * cols != data.len) {
+        return error.DimensionsMismatch;
+    }
+    var matrix = try alloc_matrix(allocator, rows, cols);
+    for (data) |val, i| {
+        matrix.data[i] = val;
+    }
+    return matrix;
+}
+
+pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
+    allocator.free(matrix.data);
+    allocator.destroy(matrix);
+}
+
+pub fn matrix_multiply(allocator: std.mem.Allocator, matrix_left: Matrix, matrix_right: Matrix) error{ MatrixDimensionError, OutOfMemory }!*Matrix {
+    var out_matrix = try alloc_matrix(allocator, matrix_left.rows, matrix_right.cols);
+    try matrix_left.multiply(matrix_right, out_matrix);
+    return out_matrix;
+}
+
 const err_tolerance = 1e-9;
 
 test "matrix application test" {
@@ -317,4 +348,28 @@ test "inner product test" {
     try a_t.multiply(a, &out);
     var expected_out_data = [_]f32{14};
     try std.testing.expectEqualSlices(f32, &expected_out_data, out.data);
+}
+
+test "linear transform test with allocation" {
+    const allocator = std.testing.allocator;
+    var identity_matrix_data = [_]f32{
+        1, 0, 0,
+        0, 1, 0,
+        0, 0, 1,
+    };
+    const identity_matrix = try alloc_matrix_with_values(allocator, 3, 3, &identity_matrix_data);
+    defer free_matrix(allocator, identity_matrix);
+
+    var vector_data = [_]f32{
+        4,
+        0,
+        223,
+    };
+    const some_vector = try alloc_matrix_with_values(allocator, 3, 1, &vector_data);
+    defer free_matrix(allocator, some_vector);
+
+    const result = try matrix_multiply(allocator, identity_matrix.*, some_vector.*);
+    defer free_matrix(allocator, result);
+
+    try std.testing.expectEqualSlices(f32, result.data, some_vector.data);
 }
