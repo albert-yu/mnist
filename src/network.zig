@@ -47,7 +47,8 @@ pub const Network = struct {
         }
     }
 
-    /// Returns a slice of biases at the given layer
+    /// Returns a slice of biases at the given layer.
+    /// Note that the input layer (at 0) has no biases.
     pub fn biases_at_layer(self: Network, i: usize) error{IndexError}![]f32 {
         if (i == 0 or i >= self.layer_count()) {
             return error.IndexError;
