@@ -156,11 +156,19 @@ pub const Matrix = struct {
     }
 };
 
-pub fn alloc_matrix(allocator: std.mem.Allocator, rows: usize, cols: usize) error{OutOfMemory}!*Matrix {
-    var matrix = try allocator.create(Matrix);
+pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: usize, cols: usize) error{OutOfMemory}!void {
     matrix.data = try allocator.alloc(f32, rows * cols);
     matrix.rows = rows;
     matrix.cols = cols;
+}
+
+pub fn free_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix) void {
+    allocator.free(matrix.data);
+}
+
+pub fn alloc_matrix(allocator: std.mem.Allocator, rows: usize, cols: usize) error{OutOfMemory}!*Matrix {
+    var matrix = try allocator.create(Matrix);
+    try alloc_matrix_data(allocator, matrix, rows, cols);
     return matrix;
 }
 
@@ -177,7 +185,7 @@ pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols:
 }
 
 pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
-    allocator.free(matrix.data);
+    free_matrix_data(allocator, matrix);
     allocator.destroy(matrix);
 }
 
