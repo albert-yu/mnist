@@ -122,6 +122,13 @@ pub const Matrix = struct {
         }
     }
 
+    /// scales all matrix elements in-place
+    pub fn scale(self: Matrix, scalar: f32) void {
+        for (self.data) |elem, i| {
+            self.data[i] = elem * scalar;
+        }
+    }
+
     /// Multiples two matrices, stores result in `out`.
     /// Assumes `out` is properly allocated, but will set
     /// the correct rows and cols.
