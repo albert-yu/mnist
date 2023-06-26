@@ -106,6 +106,22 @@ pub const Matrix = struct {
         }
     }
 
+    pub fn add(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
+        if (self.num_cols() != other.num_cols() or self.num_rows() != other.num_rows()) {
+            return error.MatrixDimensionError;
+        }
+        out.rows = self.num_rows();
+        out.cols = self.num_cols();
+        sum(self.data, other.data, out);
+    }
+
+    /// Sets all elements to 0
+    pub fn zeroes(self: Matrix) void {
+        for (self.data) |_, i| {
+            self.data[i] = 0;
+        }
+    }
+
     /// Multiples two matrices, stores result in `out`.
     /// Assumes `out` is properly allocated, but will set
     /// the correct rows and cols.
