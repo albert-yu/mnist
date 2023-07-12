@@ -28,6 +28,10 @@ pub fn apply_sigmoid_prime(arr: []f32, out: []f32) void {
     apply(sigmoid_prime, arr, out);
 }
 
+pub fn apply_sigmoid_prime_in_place(arr: []f32) void {
+    apply_sigmoid_prime(arr, arr);
+}
+
 const err_tolerance = 1e-9;
 
 test "sigmoid test" {
