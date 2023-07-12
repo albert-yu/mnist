@@ -115,6 +115,15 @@ pub const Matrix = struct {
         sum(self.data, other.data, out);
     }
 
+    pub fn sub(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
+        if (self.num_cols() != other.num_cols() or self.num_rows() != other.num_rows()) {
+            return error.MatrixDimensionError;
+        }
+        out.rows = self.num_rows();
+        out.cols = self.num_cols();
+        subtract(self.data, other.data, out);
+    }
+
     /// Sets all elements to 0
     pub fn zeroes(self: Matrix) void {
         for (self.data) |_, i| {
