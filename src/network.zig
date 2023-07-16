@@ -2,197 +2,171 @@ const std = @import("std");
 const linalg = @import("linalg.zig");
 const maths = @import("maths.zig");
 
-pub const NetworkLayer = struct {
-    weights: linalg.Matrix,
-    biases: []f32,
-    activations: []f32,
-    z_vector: []f32,
-
-    /// Returns size of the weight matrix
-    /// (number of elements)
-    pub fn size(self: NetworkLayer) usize {
-        return self.weights.size();
+fn shallow_copy_slice(comptime T: type, source: []const T, dest: []T) void {
+    for (source) |elem, i| {
+        dest[i] = elem;
     }
+}
 
-    pub fn forward_pass(self: NetworkLayer, x: []const f32) void {
-        // w*x
-        self.weights.apply(x, self.z_vector);
-        // w*x + b
-        linalg.accumulate(self.z_vector, self.biases);
-        // sigma(w*x + b)
-        maths.apply_sigmoid(self.z_vector, self.activations);
-    }
+/// resulting buffer can be freed with allocator.free()
+fn alloc_copy(comptime T: type, allocator: std.mem.Allocator, source: []const T) error{OutOfMemory}![]T {
+    var buffer = try allocator.alloc(T, source.len);
+    shallow_copy_slice(T, source, buffer);
+    return buffer;
+}
+
+const BackpropResult = struct {
+    delta_nabla_weights: []linalg.Matrix,
+    delta_nabla_biases: []linalg.Matrix,
 };
 
-pub const GradientResult = struct {
-    biases: []f32,
-    weights: linalg.Matrix,
+pub const DataPoint = struct {
+    /// input (image pixels)
+    x: []const f32,
+    /// expected output
+    y: []const f32,
 };
 
 pub const Network = struct {
+    allocator: std.mem.Allocator,
+
     layer_sizes: []usize,
 
-    layer_weights: []linalg.Matrix,
+    // should be same length as biases
+    weights: []linalg.Matrix,
 
-    /// all in one array, but accessed separately
-    layer_biases: []f32,
+    // column vectors
+    biases: []linalg.Matrix,
 
     pub fn layer_count(self: Network) usize {
         return self.layer_sizes.len;
     }
 
-    pub fn set_biases(self: Network, biases_vector: []const f32) void {
-        for (biases_vector) |b, i| {
-            self.layer_biases[i] = b;
+    fn alloc_nabla_w(self: Network) ![]linalg.Matrix {
+        const weights_copy = try self.allocator.alloc(linalg.Matrix, self.weights.len);
+
+        for (self.weights) |weight_matrix, i| {
+            const rows = weight_matrix.num_rows();
+            const cols = weight_matrix.num_cols();
+            try linalg.alloc_matrix_data(self.allocator, weights_copy[i], rows, cols);
+            weights_copy[i].zeroes();
         }
+
+        return weights_copy;
     }
 
-    /// Returns a slice of biases at the given layer.
-    /// Note that the input layer (at 0) has no biases.
-    pub fn biases_at_layer(self: Network, i: usize) error{IndexError}![]f32 {
-        if (i == 0 or i >= self.layer_count()) {
-            return error.IndexError;
+    fn alloc_nabla_b(self: Network) ![]linalg.Matrix {
+        const biases_copy = try self.allocator.alloc(linalg.Matrix, self.biases.len);
+
+        for (self.biases) |bias, i| {
+            const rows = bias.num_rows();
+            const cols = bias.num_cols();
+            try linalg.alloc_matrix_data(self.allocator, biases_copy[i], rows, cols);
+            biases_copy[i].zeroes();
         }
-        const adjusted_i = i - 1;
-        var to_skip_over: usize = 0;
-        var j: usize = 1;
-        while (j < adjusted_i) : (j += 1) {
-            const size = self.layer_sizes[j];
-            to_skip_over += size;
-        }
-        const desired_size = self.layer_sizes[j];
-        std.debug.print("skip: {}, size: {}\n", .{ to_skip_over, desired_size });
-        return self.layer_biases[to_skip_over..desired_size];
+
+        return biases_copy;
     }
 
-    // /// Returns slice to the activations at a given layer
-    // pub fn activations_at(self: Network, i: usize) []f32 {
-    //     return self.layers[i].activations;
-    // }
+    fn free_nabla(self: Network, buf: []linalg.Matrix) void {
+        for (buf) |matrix| {
+            linalg.free_matrix_data(self.allocator, matrix);
+        }
+        self.allocator.free(buf);
+    }
 
-    // pub fn z_vector_at(self: Network, i: usize) []f32 {
-    //     return self.layers[i].z_vector;
-    // }
+    fn backprop(self: Network, point: DataPoint) !BackpropResult {
+        var delta_nabla_w = try self.alloc_nabla_w();
+        var delta_nabla_b = try self.alloc_nabla_b();
 
-    // pub fn output_layer(self: Network) []f32 {
-    //     return self.activations_at(self.layer_count() - 1);
-    // }
+        var x_matrix = linalg.Matrix{
+            .data = point.x,
+            .rows = point.x.len,
+            .cols = 1,
+        };
+        var y_matrix = linalg.Matrix{
+            .data = point.y,
+            .rows = point.y.len,
+            .cols = 1,
+        };
 
-    // pub fn feedforward(self: Network, input_layer: []const f32) void {
-    //     for (self.layers) |layer, i| {
-    //         if (i == 0) {
-    //             layer.forward_pass(input_layer);
-    //         } else {
-    //             var prev_layer_activations = self.activations_at(i - 1);
-    //             layer.forward_pass(prev_layer_activations);
-    //         }
-    //     }
-    // }
+        // feedforward, and save the activations
+        var activations = try self.allocator.alloc(linalg.Matrix, self.layer_count());
+        var z_results = try self.allocator.alloc(linalg.Matrix, self.layer_count() - 1);
+        var activation_ptr: *linalg.Matrix = &x_matrix;
+        activations[0] = x_matrix;
+        for (self.weights) |w, i| {
+            const b = self.biases[i];
+            var next_activation = activations[i + 1];
 
-    // pub fn backprop(self: Network, input_layer: []const f32, y: []const f32, out: []GradientResult) error{ LayerDimensionError, MatrixDimensionError, OutOfMemory }!void {
-    //     self.feedforward(input_layer);
-    //     var output = self.output_layer();
-    //     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    //     const allocator = gpa.allocator();
-    //     const layer_size = y.len;
+            // dimension of activation = dimension of b
+            linalg.alloc_matrix_data(self.allocator, next_activation, b.num_rows(), b.num_cols());
+            linalg.alloc_matrix_data(self.allocator, z_results[i], b.num_rows(), b.num_cols());
 
-    //     // get cost derivative (a - y)
-    //     var cost_derivative = try allocator.alloc(f32, layer_size);
-    //     defer allocator.free(cost_derivative);
-    //     linalg.subtract(output, y, cost_derivative);
+            // w * x
+            try w.multiply(activation_ptr.*, &z_results[i]);
+            // w * x + b = z
+            try z_results[i].add(b, &z_results[i]);
+            // sigmoid(w * x + b)
+            maths.apply_sigmoid(z_results, next_activation.data);
+            activation_ptr = &next_activation;
+        }
 
-    //     // get sigmoid_prime
-    //     var sigmoid_primes = try allocator.alloc(f32, layer_size);
-    //     defer allocator.free(sigmoid_primes);
-    //     maths.apply_sigmoid_prime(self.z_vector_at(self.layer_count() - 1), sigmoid_primes);
+        // backward pass
 
-    //     var out_ptr = out[out.len - 1];
+        // cost derivative
+        var delta_ptr: *linalg.Matrix = &delta_nabla_b[delta_nabla_b.len - 1];
+        try activation_ptr.sub(y_matrix, delta_ptr);
+        // TODO: make these all matrix operations
+        maths.apply_sigmoid_prime_in_place(z_results[z_results.len - 1].data);
+        linalg.hadamard_product(delta_ptr.data, z_results[z_results.len - 1].data, delta_ptr.data);
 
-    //     // save product to output biases (already allocated)
-    //     linalg.hadamard_product(cost_derivative, sigmoid_primes, out_ptr.biases);
-    //     var delta = out_ptr.biases;
+        // garbage collection
+        for (activations) |activation| {
+            linalg.free_matrix_data(self.allocator, activation);
+        }
+        defer self.allocator.free(activations);
 
-    //     // transpose activations[-2]
-    //     var prev_activations = self.activations_at(self.layer_count() - 2);
+        for (z_results) |z_vec| {
+            linalg.free_matrix_data(self.allocator, z_vec);
+        }
+        defer self.allocator.free(z_results);
 
-    //     if (delta.len != prev_activations.len) {
-    //         std.debug.print("Error got different lengths, delta.len {}, prev_activations.len {}\n", .{ delta.len, prev_activations.len });
-    //         return error.LayerDimensionError;
-    //     }
+        return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
+    }
 
-    //     var activations_transposed = try allocator.alloc(f32, prev_activations.len);
-    //     defer allocator.free(activations_transposed);
-    //     var activations_matrix = linalg.Matrix{
-    //         .data = prev_activations,
-    //         .rows = prev_activations.len,
-    //         .cols = 1,
-    //     };
-    //     var activations_transposed_mat = linalg.Matrix{
-    //         .data = activations_transposed,
-    //         .rows = 1,
-    //         .cols = prev_activations.len,
-    //     };
+    /// Updates weights and biases with batch of data
+    fn update_with_batch(self: Network, batch: []const DataPoint, eta: f32) !void {
+        // TODO: use just one big matrix for each batch
+        var nabla_w = try self.alloc_nabla_w();
+        defer self.free_nabla(nabla_w);
 
-    //     linalg.transpose(activations_matrix, &activations_transposed_mat);
-    //     // store delta into a matrix
-    //     var delta_col_vec = linalg.Matrix{
-    //         .data = delta,
-    //         .rows = delta.len,
-    //         .cols = 1,
-    //     };
+        var nabla_b = try self.alloc_nabla_b();
+        defer self.free_nabla(nabla_b);
 
-    //     // delta (dot) activations[-2] becomes delta.len x activations.len
-    //     // dimensional matrix, which are the weights
-    //     var out_weight_matrix = out_ptr.weights;
-    //     // std.debug.print("out length: {}, delta_rows: {}, activations len: {}\n", .{ out_weight_matrix.data.len, delta_col_vec.rows, activations_transposed_mat.data.len });
-    //     try delta_col_vec.multiply(activations_transposed_mat, &out_weight_matrix);
+        for (batch) |point| {
+            const backprop_result = try self.backprop(point);
+            // overwrite nabla_w, and nabla_b with deltas
+            for (backprop_result.delta_nabla_weights) |delta_w, i| {
+                delta_w.add(nabla_w[i], nabla_w[i]);
+            }
 
-    //     // self.layer_count() excludes input layer, so + 1 to adjust
-    //     const layer_count_adjusted = self.layer_count() - 1;
-    //     var l: usize = layer_count_adjusted;
-    //     while (l >= 0) : (l -= 1) {
-    //         out_ptr = out[l];
-    //         out_weight_matrix = out_ptr.weights;
+            for (backprop_result.delta_nabla_biases) |delta_b, i| {
+                delta_b.add(nabla_b[i], nabla_b[i]);
+            }
+        }
 
-    //         // sigmoid(z)
-    //         var z_vector = self.z_vector_at(l);
-    //         var sigmoid_primes_buf = try allocator.alloc(f32, z_vector.len);
-    //         defer allocator.free(sigmoid_primes_buf);
-    //         maths.apply_sigmoid_prime(z_vector, sigmoid_primes_buf);
-
-    //         // delta = weights[l+1].transpose() (dot) delta[l+1] (*) sigmoid_prime(z)
-    //         var weight_ahead = out[l + 1].weights;
-    //         var weight_ahead_t_data = try allocator.alloc(f32, weight_ahead.num_rows() * weight_ahead.num_cols());
-    //         var weight_ahead_t = linalg.Matrix{
-    //             .data = weight_ahead_t_data,
-    //             .rows = 0,
-    //             .cols = 0,
-    //         };
-    //         linalg.transpose(weight_ahead, &weight_ahead_t);
-
-    //         var delta_buf = try allocator.alloc(f32, z_vector.len);
-    //         defer allocator.free(delta_buf);
-
-    //         var delta_ahead = out[l + 1].biases;
-    //         weight_ahead_t.apply(delta_ahead, delta_buf);
-
-    //         linalg.hadamard_product(delta_buf, sigmoid_primes_buf, out_ptr.biases);
-    //         var activations_behind_data = self.activations_at(l - 1);
-    //         var activations_behind_t = linalg.Matrix{
-    //             .data = activations_behind_data,
-    //             .rows = 1,
-    //             .cols = activations_behind_data.len,
-    //         };
-
-    //         var delta_current = out_ptr.biases;
-    //         var delta_vec = linalg.Matrix{
-    //             .data = delta_current,
-    //             .rows = delta_current.len,
-    //             .cols = 1,
-    //         };
-    //         try delta_vec.multiply(activations_behind_t, &out_ptr.weights);
-    //     }
-    // }
+        // update weights, biases
+        const scalar = eta / @intToFloat(f32, batch.len);
+        for (self.weights) |weight, i| {
+            nabla_w[i].scale(scalar);
+            linalg.subtract(weight, nabla_w[i], weight);
+        }
+        for (self.biases) |bias, i| {
+            nabla_b[i].scale(scalar);
+            linalg.subtract(bias, nabla_b[i], bias);
+        }
+    }
 };
 
 fn sum_sizes(sizes: []const usize) usize {
