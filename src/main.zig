@@ -68,11 +68,11 @@ pub fn main() !void {
 
     const DIGITS = 10;
     const train_data_points = try nn.make_mnist_data_points(allocator, images, image_size, labels, DIGITS);
-    defer nn.free_mnist_data_points(train_data_points);
+    defer nn.free_mnist_data_points(allocator, train_data_points);
 
     const HIDDEN_LAYER_SIZE = 30;
     const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
-    const network = try nn.alloc_network(allocator, &layer_sizes);
+    var network = try nn.alloc_network(allocator, &layer_sizes);
     defer nn.free_network(allocator, network);
-    network.sgd(train_data_points, 0.05);
+    try network.sgd(train_data_points, 0.05);
 }

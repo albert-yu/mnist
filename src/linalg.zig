@@ -112,7 +112,7 @@ pub const Matrix = struct {
         }
         out.rows = self.num_rows();
         out.cols = self.num_cols();
-        sum(self.data, other.data, out);
+        sum(self.data, other.data, out.data);
     }
 
     pub fn sub(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
@@ -121,7 +121,7 @@ pub const Matrix = struct {
         }
         out.rows = self.num_rows();
         out.cols = self.num_cols();
-        subtract(self.data, other.data, out);
+        subtract(self.data, other.data, out.data);
     }
 
     /// Sets all elements to 0

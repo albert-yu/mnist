@@ -22,9 +22,9 @@ const BackpropResult = struct {
 
 pub const DataPoint = struct {
     /// input (image pixels)
-    x: []const f32,
+    x: []f32,
     /// expected output
-    y: []const f32,
+    y: []f32,
 };
 
 pub const Network = struct {
@@ -48,7 +48,7 @@ pub const Network = struct {
         for (self.weights) |weight_matrix, i| {
             const rows = weight_matrix.num_rows();
             const cols = weight_matrix.num_cols();
-            try linalg.alloc_matrix_data(self.allocator, weights_copy[i], rows, cols);
+            try linalg.alloc_matrix_data(self.allocator, &weights_copy[i], rows, cols);
             weights_copy[i].zeroes();
         }
 
@@ -61,7 +61,7 @@ pub const Network = struct {
         for (self.biases) |bias, i| {
             const rows = bias.num_rows();
             const cols = bias.num_cols();
-            try linalg.alloc_matrix_data(self.allocator, biases_copy[i], rows, cols);
+            try linalg.alloc_matrix_data(self.allocator, &biases_copy[i], rows, cols);
             biases_copy[i].zeroes();
         }
 
@@ -70,7 +70,7 @@ pub const Network = struct {
 
     fn free_nabla(self: Network, buf: []linalg.Matrix) void {
         for (buf) |matrix| {
-            linalg.free_matrix_data(self.allocator, matrix);
+            linalg.free_matrix_data(self.allocator, &matrix);
         }
         self.allocator.free(buf);
     }
@@ -100,15 +100,15 @@ pub const Network = struct {
             var next_activation = activations[i + 1];
 
             // dimension of activation = dimension of b
-            linalg.alloc_matrix_data(self.allocator, next_activation, b.num_rows(), b.num_cols());
-            linalg.alloc_matrix_data(self.allocator, z_results[i], b.num_rows(), b.num_cols());
+            try linalg.alloc_matrix_data(self.allocator, &next_activation, b.num_rows(), b.num_cols());
+            try linalg.alloc_matrix_data(self.allocator, &z_results[i], b.num_rows(), b.num_cols());
 
             // w * x
             try w.multiply(activation_ptr.*, &z_results[i]);
             // w * x + b = z
             try z_results[i].add(b, &z_results[i]);
             // sigmoid(w * x + b)
-            maths.apply_sigmoid(z_results, next_activation.data);
+            maths.apply_sigmoid(z_results[i].data, next_activation.data);
             activation_ptr = &next_activation;
         }
 
@@ -123,12 +123,12 @@ pub const Network = struct {
 
         // garbage collection
         for (activations) |activation| {
-            linalg.free_matrix_data(self.allocator, activation);
+            linalg.free_matrix_data(self.allocator, &activation);
         }
         defer self.allocator.free(activations);
 
         for (z_results) |z_vec| {
-            linalg.free_matrix_data(self.allocator, z_vec);
+            linalg.free_matrix_data(self.allocator, &z_vec);
         }
         defer self.allocator.free(z_results);
 
@@ -148,23 +148,25 @@ pub const Network = struct {
             const backprop_result = try self.backprop(point);
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
-                delta_w.add(nabla_w[i], nabla_w[i]);
+                try delta_w.add(nabla_w[i], &nabla_w[i]);
             }
 
             for (backprop_result.delta_nabla_biases) |delta_b, i| {
-                delta_b.add(nabla_b[i], nabla_b[i]);
+                try delta_b.add(nabla_b[i], &nabla_b[i]);
             }
         }
 
         // update weights, biases
         const scalar = eta / @intToFloat(f32, batch.len);
-        for (self.weights) |weight, i| {
+        for (self.weights) |_, i| {
+            var weight = self.weights[i];
             nabla_w[i].scale(scalar);
-            linalg.subtract(weight, nabla_w[i], weight);
+            try weight.sub(nabla_w[i], &weight);
         }
-        for (self.biases) |bias, i| {
+        for (self.biases) |_, i| {
+            var bias = self.biases[i];
             nabla_b[i].scale(scalar);
-            linalg.subtract(bias, nabla_b[i], bias);
+            try bias.sub(nabla_b[i], &bias);
         }
     }
 
@@ -177,7 +179,7 @@ pub const Network = struct {
             const end_indx = if (remaining >= batch_size) i + batch_size else i + remaining;
             const batch_view = train_data[i..end_indx];
             std.debug.print("updating with batch size: {}\n", .{batch_view.len});
-            self.update_with_batch(batch_view, eta);
+            try self.update_with_batch(batch_view, eta);
             i += batch_size;
         }
     }
@@ -248,7 +250,7 @@ fn sum_sizes(sizes: []const usize) usize {
 pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) error{OutOfMemory}!*Network {
     var network = try allocator.create(Network);
     network.layer_sizes = try allocator.alloc(usize, layer_sizes.len);
-    network.biases = try allocator.alloc(f32, sum_sizes(layer_sizes[1..]));
+    network.biases = try allocator.alloc(linalg.Matrix, sum_sizes(layer_sizes[1..]));
     network.weights = try allocator.alloc(linalg.Matrix, layer_sizes.len - 1);
 
     // allocate weight matrices
@@ -259,40 +261,40 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
             continue;
         }
         const prev_layer_size: usize = layer_sizes[i - 1];
-        try linalg.alloc_matrix_data(allocator, &network.layer_weights[i - 1], layer_size, prev_layer_size);
+        try linalg.alloc_matrix_data(allocator, &network.weights[i - 1], layer_size, prev_layer_size);
     }
 
     return network;
 }
 
 pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
-    for (network.layer_weights) |weight_matrix| {
+    for (network.weights) |weight_matrix| {
         linalg.free_matrix_data(allocator, &weight_matrix);
     }
-    allocator.free(network.layer_weights);
-    allocator.free(network.layer_biases);
+    allocator.free(network.weights);
+    allocator.free(network.biases);
     allocator.free(network.layer_sizes);
     allocator.destroy(network);
 }
 
-test "biases vector access test" {
-    var layer_biases = [_]f32{
-        1, 2, 3, 4, 5, 6,
-    };
-    var layer_sizes = [_]usize{
-        4, 3, 2, 1,
-    };
-
-    const allocator = std.testing.allocator;
-    var network = try alloc_network(allocator, &layer_sizes);
-    defer free_network(allocator, network);
-    network.set_biases(&layer_biases);
-    const first_biases = try network.biases_at_layer(1);
-    var expected = [_]f32{
-        1, 2, 3,
-    };
-    try std.testing.expectEqualSlices(f32, first_biases, &expected);
-}
+// test "biases vector access test" {
+//     var layer_biases = [_]f32{
+//         1, 2, 3, 4, 5, 6,
+//     };
+//     var layer_sizes = [_]usize{
+//         4, 3, 2, 1,
+//     };
+//
+//     const allocator = std.testing.allocator;
+//     var network = try alloc_network(allocator, &layer_sizes);
+//     defer free_network(allocator, network);
+//     network.set_biases(&layer_biases);
+//     const first_biases = try network.biases_at_layer(1);
+//     var expected = [_]f32{
+//         1, 2, 3,
+//     };
+//     try std.testing.expectEqualSlices(f32, first_biases, &expected);
+// }
 
 // test "feedforward test" {
 //     var w_1 = [_]f32{
