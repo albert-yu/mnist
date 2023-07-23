@@ -27,34 +27,8 @@ fn console_print_image(img_bytes: []u8, num_rows: usize) void {
     std.debug.print("\n", .{});
 }
 
-/// Writes the decimal digit 0-9 to a buffer
-/// of size 10, where the value at the position
-/// corresponds to whether the current digit
-/// is represented.
-///
-/// For example, `4` is represented as
-///
-/// ```
-/// [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]
-///  0  1  2  3  4  5  6  7  8  9
-/// ```
-fn write_digit(digit: u8, buf: *[10]f32) void {
-    // clear all
-    for (buf) |_, i| {
-        buf[i] = 0;
-    }
-    buf[digit] = 1;
-}
-
-/// Assumed to be the same length
-fn copy_image_data(input: []u8, output: []f32) void {
-    for (input) |pixel, i| {
-        output[i] = @intToFloat(f32, pixel);
-    }
-}
-
-fn read_file(allocator: std.mem.Allocator, filename: []const u8) !void {
-    const file = try std.fs.cwd().openFile(filename);
+fn read_file(allocator: std.mem.Allocator, filename: []const u8) ![]u8 {
+    const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
 
     const size = try file.getEndPos();
@@ -62,7 +36,6 @@ fn read_file(allocator: std.mem.Allocator, filename: []const u8) !void {
     _ = try file.read(buffer);
     return buffer;
 }
-
 
 pub fn main() !void {
     const TRAIN_LABELS_FILE = "data/train-labels.idx1-ubyte";
@@ -93,4 +66,13 @@ pub fn main() !void {
 
     const image_size = num_rows * num_cols;
 
+    const DIGITS = 10;
+    const train_data_points = try nn.make_mnist_data_points(allocator, images, image_size, labels, DIGITS);
+    defer nn.free_mnist_data_points(train_data_points);
+
+    const HIDDEN_LAYER_SIZE = 30;
+    const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
+    const network = try nn.alloc_network(allocator, &layer_sizes);
+    defer nn.free_network(allocator, network);
+    network.sgd(train_data_points, 0.05);
 }

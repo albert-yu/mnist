@@ -167,7 +167,75 @@ pub const Network = struct {
             linalg.subtract(bias, nabla_b[i], bias);
         }
     }
+
+    pub fn sgd(self: Network, train_data: []const DataPoint, eta: f32) !void {
+        const batch_size = 10;
+        // TODO: shuffle training data
+        var i: usize = 0;
+        while (i < train_data.len) {
+            const remaining = train_data.len - 1 - i;
+            const end_indx = if (remaining >= batch_size) i + batch_size else i + remaining;
+            const batch_view = train_data[i..end_indx];
+            std.debug.print("updating with batch size: {}\n", .{batch_view.len});
+            self.update_with_batch(batch_view, eta);
+            i += batch_size;
+        }
+    }
 };
+
+/// Writes the decimal digit 0-9 to a buffer
+/// of size 10, where the value at the position
+/// corresponds to whether the current digit
+/// is represented.
+///
+/// For example, `4` is represented as
+///
+/// ```
+/// [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]
+///  0  1  2  3  4  5  6  7  8  9
+/// ```
+fn write_digit(digit: u8, buf: []f32) void {
+    // clear all
+    for (buf) |_, i| {
+        buf[i] = 0;
+    }
+    buf[digit] = 1;
+}
+
+/// Assumed to be the same length
+fn copy_image_data(input: []const u8, output: []f32) void {
+    for (input) |pixel, i| {
+        output[i] = @intToFloat(f32, pixel);
+    }
+}
+
+pub fn make_mnist_data_points(allocator: std.mem.Allocator, x: []const u8, x_chunk_size: usize, y: []const u8, y_output_size: usize) ![]DataPoint {
+    const result = try allocator.alloc(DataPoint, x.len / x_chunk_size);
+    var i: usize = 0;
+    // assuming x / x_chunk_size and y.len are the same
+    while (i < x.len) {
+        const slice = x[i .. i + x_chunk_size];
+        const x_buffer = try allocator.alloc(f32, x_chunk_size);
+        copy_image_data(slice, x_buffer);
+        const y_buffer = try allocator.alloc(f32, y_output_size);
+        write_digit(y[i], y_buffer);
+
+        result[i] = DataPoint{
+            .x = x_buffer,
+            .y = y_buffer,
+        };
+        i += x_chunk_size;
+    }
+    return result;
+}
+
+pub fn free_mnist_data_points(allocator: std.mem.Allocator, data: []DataPoint) void {
+    for (data) |data_pt| {
+        allocator.free(data_pt.x);
+        allocator.free(data_pt.y);
+    }
+    allocator.free(data);
+}
 
 fn sum_sizes(sizes: []const usize) usize {
     var result: usize = 0;
@@ -180,8 +248,8 @@ fn sum_sizes(sizes: []const usize) usize {
 pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) error{OutOfMemory}!*Network {
     var network = try allocator.create(Network);
     network.layer_sizes = try allocator.alloc(usize, layer_sizes.len);
-    network.layer_biases = try allocator.alloc(f32, sum_sizes(layer_sizes[1..]));
-    network.layer_weights = try allocator.alloc(linalg.Matrix, layer_sizes.len - 1);
+    network.biases = try allocator.alloc(f32, sum_sizes(layer_sizes[1..]));
+    network.weights = try allocator.alloc(linalg.Matrix, layer_sizes.len - 1);
 
     // allocate weight matrices
     for (layer_sizes) |layer_size, i| {
