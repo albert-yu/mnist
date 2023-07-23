@@ -214,18 +214,22 @@ fn copy_image_data(input: []const u8, output: []f32) void {
 pub fn make_mnist_data_points(allocator: std.mem.Allocator, x: []const u8, x_chunk_size: usize, y: []const u8, y_output_size: usize) ![]DataPoint {
     const result = try allocator.alloc(DataPoint, x.len / x_chunk_size);
     var i: usize = 0;
+    std.debug.print("x.len: {}\n", .{x.len});
+    var idx: usize = 0;
     // assuming x / x_chunk_size and y.len are the same
     while (i < x.len) {
+        //std.debug.print("i: {}\n", .{i});
         const slice = x[i .. i + x_chunk_size];
         const x_buffer = try allocator.alloc(f32, x_chunk_size);
         copy_image_data(slice, x_buffer);
         const y_buffer = try allocator.alloc(f32, y_output_size);
-        write_digit(y[i], y_buffer);
+        write_digit(y[idx], y_buffer);
 
-        result[i] = DataPoint{
+        result[idx] = DataPoint{
             .x = x_buffer,
             .y = y_buffer,
         };
+        idx += 1;
         i += x_chunk_size;
     }
     return result;
