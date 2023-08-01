@@ -189,7 +189,6 @@ pub const Matrix = struct {
 };
 
 pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: usize, cols: usize) error{OutOfMemory}!void {
-    std.debug.print("rows: {} cols: {}\n", .{ rows, cols });
     matrix.data = try allocator.alloc(f32, rows * cols);
     matrix.rows = rows;
     matrix.cols = cols;
