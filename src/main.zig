@@ -74,5 +74,5 @@ pub fn main() !void {
     const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
     var network = try nn.alloc_network(allocator, &layer_sizes);
     defer nn.free_network(allocator, network);
-    try network.sgd(train_data_points, 0.05);
+    try network.sgd(allocator, train_data_points, 0.05);
 }

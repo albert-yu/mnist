@@ -28,8 +28,6 @@ pub const DataPoint = struct {
 };
 
 pub const Network = struct {
-    allocator: std.mem.Allocator,
-
     layer_sizes: []usize,
 
     // should be same length as biases
@@ -42,42 +40,43 @@ pub const Network = struct {
         return self.layer_sizes.len;
     }
 
-    fn alloc_nabla_w(self: Network) ![]linalg.Matrix {
-        const weights_copy = try self.allocator.alloc(linalg.Matrix, self.weights.len);
+    fn alloc_nabla_w(self: Network, allocator: std.mem.Allocator) ![]linalg.Matrix {
+        const weights_copy = try allocator.alloc(linalg.Matrix, self.weights.len);
 
         for (self.weights) |weight_matrix, i| {
             const rows = weight_matrix.num_rows();
             const cols = weight_matrix.num_cols();
-            try linalg.alloc_matrix_data(self.allocator, &weights_copy[i], rows, cols);
+            try linalg.alloc_matrix_data(allocator, &weights_copy[i], rows, cols);
             weights_copy[i].zeroes();
         }
 
         return weights_copy;
     }
 
-    fn alloc_nabla_b(self: Network) ![]linalg.Matrix {
-        const biases_copy = try self.allocator.alloc(linalg.Matrix, self.biases.len);
+    fn alloc_nabla_b(self: Network, allocator: std.mem.Allocator) ![]linalg.Matrix {
+        const biases_copy = try allocator.alloc(linalg.Matrix, self.biases.len);
 
         for (self.biases) |bias, i| {
             const rows = bias.num_rows();
             const cols = bias.num_cols();
-            try linalg.alloc_matrix_data(self.allocator, &biases_copy[i], rows, cols);
+            try linalg.alloc_matrix_data(allocator, &biases_copy[i], rows, cols);
             biases_copy[i].zeroes();
         }
 
         return biases_copy;
     }
 
-    fn free_nabla(self: Network, buf: []linalg.Matrix) void {
+    fn free_nabla(self: Network, allocator: std.mem.Allocator, buf: []linalg.Matrix) void {
+        _ = self;
         for (buf) |matrix| {
-            linalg.free_matrix_data(self.allocator, &matrix);
+            linalg.free_matrix_data(allocator, &matrix);
         }
-        self.allocator.free(buf);
+        allocator.free(buf);
     }
 
-    fn backprop(self: Network, point: DataPoint) !BackpropResult {
-        var delta_nabla_w = try self.alloc_nabla_w();
-        var delta_nabla_b = try self.alloc_nabla_b();
+    fn backprop(self: Network, allocator: std.mem.Allocator, point: DataPoint) !BackpropResult {
+        var delta_nabla_w = try self.alloc_nabla_w(allocator);
+        var delta_nabla_b = try self.alloc_nabla_b(allocator);
 
         var x_matrix = linalg.Matrix{
             .data = point.x,
@@ -91,8 +90,8 @@ pub const Network = struct {
         };
 
         // feedforward, and save the activations
-        var activations = try self.allocator.alloc(linalg.Matrix, self.layer_count());
-        var z_results = try self.allocator.alloc(linalg.Matrix, self.layer_count() - 1);
+        var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
+        var z_results = try allocator.alloc(linalg.Matrix, self.layer_count() - 1);
         var activation_ptr: *linalg.Matrix = &x_matrix;
         activations[0] = x_matrix;
         for (self.weights) |w, i| {
@@ -100,8 +99,8 @@ pub const Network = struct {
             var next_activation = activations[i + 1];
 
             // dimension of activation = dimension of b
-            try linalg.alloc_matrix_data(self.allocator, &next_activation, b.num_rows(), b.num_cols());
-            try linalg.alloc_matrix_data(self.allocator, &z_results[i], b.num_rows(), b.num_cols());
+            try linalg.alloc_matrix_data(allocator, &next_activation, b.num_rows(), b.num_cols());
+            try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
 
             // w * x
             try w.multiply(activation_ptr.*, &z_results[i]);
@@ -123,29 +122,29 @@ pub const Network = struct {
 
         // garbage collection
         for (activations) |activation| {
-            linalg.free_matrix_data(self.allocator, &activation);
+            linalg.free_matrix_data(allocator, &activation);
         }
-        defer self.allocator.free(activations);
+        defer allocator.free(activations);
 
         for (z_results) |z_vec| {
-            linalg.free_matrix_data(self.allocator, &z_vec);
+            linalg.free_matrix_data(allocator, &z_vec);
         }
-        defer self.allocator.free(z_results);
+        defer allocator.free(z_results);
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
     }
 
     /// Updates weights and biases with batch of data
-    fn update_with_batch(self: Network, batch: []const DataPoint, eta: f32) !void {
+    fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f32) !void {
         // TODO: use just one big matrix for each batch
-        var nabla_w = try self.alloc_nabla_w();
-        defer self.free_nabla(nabla_w);
+        var nabla_w = try self.alloc_nabla_w(allocator);
+        defer self.free_nabla(allocator, nabla_w);
 
-        var nabla_b = try self.alloc_nabla_b();
-        defer self.free_nabla(nabla_b);
+        var nabla_b = try self.alloc_nabla_b(allocator);
+        defer self.free_nabla(allocator, nabla_b);
 
         for (batch) |point| {
-            const backprop_result = try self.backprop(point);
+            const backprop_result = try self.backprop(allocator, point);
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
                 try delta_w.add(nabla_w[i], &nabla_w[i]);
@@ -170,7 +169,7 @@ pub const Network = struct {
         }
     }
 
-    pub fn sgd(self: Network, train_data: []const DataPoint, eta: f32) !void {
+    pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []const DataPoint, eta: f32) !void {
         const batch_size = 10;
         // TODO: shuffle training data
         var i: usize = 0;
@@ -179,7 +178,7 @@ pub const Network = struct {
             const end_indx = if (remaining >= batch_size) i + batch_size else i + remaining;
             const batch_view = train_data[i..end_indx];
             std.debug.print("updating with batch size: {}\n", .{batch_view.len});
-            try self.update_with_batch(batch_view, eta);
+            try self.update_with_batch(allocator, batch_view, eta);
             i += batch_size;
         }
     }
