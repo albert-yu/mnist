@@ -255,7 +255,7 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
     network.biases = try allocator.alloc(linalg.Matrix, sum_sizes(layer_sizes[1..]));
     network.weights = try allocator.alloc(linalg.Matrix, layer_sizes.len - 1);
 
-    // allocate weight matrices
+    // allocate weights and biases matrices
     for (layer_sizes) |layer_size, i| {
         // copy layer sizes
         network.layer_sizes[i] = layer_size;
@@ -264,6 +264,7 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
         }
         const prev_layer_size: usize = layer_sizes[i - 1];
         try linalg.alloc_matrix_data(allocator, &network.weights[i - 1], layer_size, prev_layer_size);
+        try linalg.alloc_matrix_data(allocator, &network.biases[i - 1], layer_size, 1);
     }
 
     return network;
