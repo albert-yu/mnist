@@ -141,12 +141,12 @@ pub const Matrix = struct {
     /// Multiples two matrices, stores result in `out`.
     /// Assumes `out` is properly allocated, but will set
     /// the correct rows and cols.
-    pub fn multiply(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.num_cols() != other.num_rows()) {
+    pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
+        if (self.num_cols() != right.num_rows()) {
             return error.MatrixDimensionError;
         }
         out.rows = self.num_rows();
-        out.cols = other.num_cols();
+        out.cols = right.num_cols();
         var i: usize = 0;
         while (i < out.num_rows()) : (i += 1) {
             var j: usize = 0;
@@ -154,7 +154,7 @@ pub const Matrix = struct {
                 var acc: f32 = 0;
                 var k: usize = 0;
                 while (k < self.num_cols()) : (k += 1) {
-                    acc += self.at(i, k) * other.at(k, j);
+                    acc += self.at(i, k) * right.at(k, j);
                 }
                 out.set(i, j, acc);
             }
