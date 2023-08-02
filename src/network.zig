@@ -92,7 +92,7 @@ pub const Network = struct {
         // feedforward, and save the activations
         var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
         var z_results = try allocator.alloc(linalg.Matrix, self.layer_count() - 1);
-        var activation_ptr: *linalg.Matrix = &x_matrix;
+        var activation_ptr: linalg.Matrix = x_matrix;
         activations[0] = x_matrix;
         for (self.weights) |w, i| {
             const b = self.biases[i];
@@ -103,12 +103,12 @@ pub const Network = struct {
             try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
 
             // w * x
-            try w.multiply(activation_ptr.*, &z_results[i]);
+            try w.multiply(activation_ptr, &z_results[i]);
             // w * x + b = z
             try z_results[i].add(b, &z_results[i]);
             // sigmoid(w * x + b)
             maths.apply_sigmoid(z_results[i].data, next_activation.data);
-            activation_ptr = &next_activation;
+            activation_ptr = next_activation;
         }
 
         // backward pass
