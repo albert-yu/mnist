@@ -275,6 +275,9 @@ pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
     for (network.weights) |weight_matrix| {
         linalg.free_matrix_data(allocator, weight_matrix);
     }
+    for (network.biases) |bias_matrix| {
+        linalg.free_matrix_data(allocator, bias_matrix);
+    }
     allocator.free(network.weights);
     allocator.free(network.biases);
     allocator.free(network.layer_sizes);
