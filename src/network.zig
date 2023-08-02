@@ -252,8 +252,9 @@ fn sum_sizes(sizes: []const usize) usize {
 pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) error{OutOfMemory}!*Network {
     var network = try allocator.create(Network);
     network.layer_sizes = try allocator.alloc(usize, layer_sizes.len);
-    network.biases = try allocator.alloc(linalg.Matrix, sum_sizes(layer_sizes[1..]));
-    network.weights = try allocator.alloc(linalg.Matrix, layer_sizes.len - 1);
+    var biases_weights_len = layer_sizes.len - 1;
+    network.biases = try allocator.alloc(linalg.Matrix, biases_weights_len);
+    network.weights = try allocator.alloc(linalg.Matrix, biases_weights_len);
 
     // allocate weights and biases matrices
     for (layer_sizes) |layer_size, i| {
