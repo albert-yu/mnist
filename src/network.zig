@@ -69,7 +69,7 @@ pub const Network = struct {
     fn free_nabla(self: Network, allocator: std.mem.Allocator, buf: []linalg.Matrix) void {
         _ = self;
         for (buf) |matrix| {
-            linalg.free_matrix_data(allocator, &matrix);
+            linalg.free_matrix_data(allocator, matrix);
         }
         allocator.free(buf);
     }
@@ -122,12 +122,12 @@ pub const Network = struct {
 
         // garbage collection
         for (activations) |activation| {
-            linalg.free_matrix_data(allocator, &activation);
+            linalg.free_matrix_data(allocator, activation);
         }
         defer allocator.free(activations);
 
         for (z_results) |z_vec| {
-            linalg.free_matrix_data(allocator, &z_vec);
+            linalg.free_matrix_data(allocator, z_vec);
         }
         defer allocator.free(z_results);
 
@@ -273,7 +273,7 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
 
 pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
     for (network.weights) |weight_matrix| {
-        linalg.free_matrix_data(allocator, &weight_matrix);
+        linalg.free_matrix_data(allocator, weight_matrix);
     }
     allocator.free(network.weights);
     allocator.free(network.biases);

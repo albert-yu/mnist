@@ -194,7 +194,7 @@ pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: us
     matrix.cols = cols;
 }
 
-pub fn free_matrix_data(allocator: std.mem.Allocator, matrix: *const Matrix) void {
+pub fn free_matrix_data(allocator: std.mem.Allocator, matrix: Matrix) void {
     allocator.free(matrix.data);
 }
 
@@ -216,7 +216,7 @@ pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols:
     return matrix;
 }
 
-pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
+pub fn free_matrix(allocator: std.mem.Allocator, matrix: Matrix) void {
     free_matrix_data(allocator, matrix);
     allocator.destroy(matrix);
 }
