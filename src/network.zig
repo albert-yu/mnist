@@ -173,6 +173,10 @@ pub const Network = struct {
 
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
+            defer {
+                self.free_nabla(allocator, backprop_result.delta_nabla_biases);
+                self.free_nabla(allocator, backprop_result.delta_nabla_weights);
+            }
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
                 try delta_w.add(nabla_w[i], &nabla_w[i]);
@@ -210,7 +214,7 @@ pub const Network = struct {
     }
 
     pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
-        const EPOCHS = 100;
+        const EPOCHS = 10;
         var epoch: usize = 0;
         while (epoch < EPOCHS) {
             shuffle(DataPoint, train_data);
