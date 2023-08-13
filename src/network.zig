@@ -196,6 +196,65 @@ pub const Network = struct {
             i += batch_size;
         }
     }
+
+    /// Need to free result
+    pub fn feedforward(self: Network, allocator: std.mem.Allocator, point: DataPoint) !*linalg.Matrix {
+        var x_matrix = linalg.Matrix{
+            .data = point.x,
+            .rows = point.x.len,
+            .cols = 1,
+        };
+        // feedforward, and save the activations
+        var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
+        for (activations) |_, i| {
+            if (i == 0) {
+                continue;
+            }
+            const b = self.biases[i - 1];
+            try linalg.alloc_matrix_data(allocator, &activations[i], b.num_rows(), b.num_cols());
+        }
+        defer {
+            for (activations) |activation, i| {
+                if (i == 0) {
+                    continue;
+                }
+                linalg.free_matrix_data(allocator, activation);
+            }
+            allocator.free(activations);
+        }
+        var z_results = try allocator.alloc(linalg.Matrix, self.layer_count() - 1);
+        for (z_results) |_, i| {
+            const b = self.biases[i];
+            try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
+        }
+        defer {
+            for (z_results) |z| {
+                linalg.free_matrix_data(allocator, z);
+            }
+            allocator.free(z_results);
+        }
+
+        var activation_ptr: linalg.Matrix = x_matrix;
+        activations[0] = x_matrix;
+        for (self.weights) |w, i| {
+            const b = self.biases[i];
+            var next_activation = activations[i + 1];
+
+            // dimension of activation = dimension of b
+
+            // w * x
+            try w.multiply(activation_ptr, &z_results[i]);
+            // w * x + b = z
+            try z_results[i].add(b, &z_results[i]);
+            // sigmoid(w * x + b)
+            maths.apply_sigmoid(z_results[i].data, next_activation.data);
+            activation_ptr = next_activation;
+        }
+
+        // copy to result
+        var result = try linalg.alloc_matrix_with_values(allocator, activation_ptr.num_rows(), activation_ptr.num_cols(), activation_ptr.data);
+        return result;
+    }
 };
 
 /// Writes the decimal digit 0-9 to a buffer
@@ -298,82 +357,48 @@ pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
     allocator.destroy(network);
 }
 
-// test "biases vector access test" {
-//     var layer_biases = [_]f32{
-//         1, 2, 3, 4, 5, 6,
-//     };
-//     var layer_sizes = [_]usize{
-//         4, 3, 2, 1,
-//     };
-//
-//     const allocator = std.testing.allocator;
-//     var network = try alloc_network(allocator, &layer_sizes);
-//     defer free_network(allocator, network);
-//     network.set_biases(&layer_biases);
-//     const first_biases = try network.biases_at_layer(1);
-//     var expected = [_]f32{
-//         1, 2, 3,
-//     };
-//     try std.testing.expectEqualSlices(f32, first_biases, &expected);
-// }
+test "feedforward test" {
+    const allocator = std.testing.allocator;
+    var layer_sizes = [_]usize{ 2, 2, 2 };
+    var network = try alloc_network(allocator, &layer_sizes);
+    defer free_network(allocator, network);
+    var w_1 = [_]f32{
+        1, 0,
+        0, 1,
+    };
+    var b_1 = [_]f32{
+        0.5,
+        0.5,
+    };
+    network.weights[0].copy_data_unsafe(&w_1);
+    network.biases[0].copy_data_unsafe(&b_1);
 
-// test "feedforward test" {
-//     var w_1 = [_]f32{
-//         1, 0,
-//         0, 1,
-//     };
-//     var b_1 = [_]f32{
-//         0.5,
-//         0.5,
-//     };
-//     var activations_1 = [_]f32{ 0, 0 };
-//     var z_vector_1 = [_]f32{ 0, 0 };
-//     var layer_1 = NetworkLayer{
-//         .weights = linalg.Matrix{
-//             .data = &w_1,
-//             .rows = 2,
-//             .cols = 2,
-//         },
-//         .biases = &b_1,
-//         .activations = &activations_1,
-//         .z_vector = &z_vector_1,
-//     };
-//
-//     var w_2 = [_]f32{
-//         -1, 0,
-//         0,  1,
-//     };
-//     var b_2 = [_]f32{
-//         0.2,
-//         0.2,
-//     };
-//     var activations_2 = [_]f32{ 0, 0 };
-//     var z_vector_2 = [_]f32{ 0, 0 };
-//     var layer_2 = NetworkLayer{
-//         .weights = linalg.Matrix{
-//             .data = &w_2,
-//             .rows = 2,
-//             .cols = 2,
-//         },
-//         .biases = &b_2,
-//         .activations = &activations_2,
-//         .z_vector = &z_vector_2,
-//     };
-//     var layers = [_]NetworkLayer{
-//         layer_1,
-//         layer_2,
-//     };
-//     var input_layer = [_]f32{
-//         0.1,
-//         0.1,
-//     };
-//     var network = Network{
-//         .layers = &layers,
-//     };
-//     network.feedforward(&input_layer);
-//
-//     var output = network.output_layer();
-//     var expected_out = [_]f32{ 0.3903940131009935, 0.6996551604890665 };
-//     try std.testing.expectApproxEqRel(expected_out[0], output[0], 1e-6);
-//     try std.testing.expectApproxEqRel(expected_out[1], output[1], 1e-6);
-// }
+    var w_2 = [_]f32{
+        -1, 0,
+        0,  1,
+    };
+    var b_2 = [_]f32{
+        0.2,
+        0.2,
+    };
+
+    network.weights[1].copy_data_unsafe(&w_2);
+    network.biases[1].copy_data_unsafe(&b_2);
+    var input_x = [_]f32{
+        0.1,
+        0.1,
+    };
+    var input = DataPoint{
+        .x = &input_x,
+        .y = undefined,
+    };
+    const TOLERANCE = 1e-6;
+
+    var res = try network.feedforward(allocator, input);
+    defer linalg.free_matrix(allocator, res);
+
+    // var output = network.output_layer();
+    var expected_out = [_]f32{ 0.3903940131009935, 0.6996551604890665 };
+    try std.testing.expectApproxEqRel(expected_out[0], res.data[0], TOLERANCE);
+    try std.testing.expectApproxEqRel(expected_out[1], res.data[1], TOLERANCE);
+}
