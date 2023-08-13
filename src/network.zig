@@ -191,7 +191,7 @@ pub const Network = struct {
             const remaining = train_data.len - 1 - i;
             const end_indx = if (remaining >= batch_size) i + batch_size else i + remaining;
             const batch_view = train_data[i..end_indx];
-            std.debug.print("updating with batch size: {}\n", .{batch_view.len});
+            std.debug.print("updating with batch size {} at i {}\n", .{ batch_view.len, i });
             try self.update_with_batch(allocator, batch_view, eta);
             i += batch_size;
         }
