@@ -22,9 +22,9 @@ const BackpropResult = struct {
 
 pub const DataPoint = struct {
     /// input (image pixels)
-    x: []f32,
+    x: []f64,
     /// expected output
-    y: []f32,
+    y: []f64,
 };
 
 pub const Network = struct {
@@ -149,7 +149,7 @@ pub const Network = struct {
     }
 
     /// Updates weights and biases with batch of data
-    fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f32) !void {
+    fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f64) !void {
         // TODO: use just one big matrix for each batch
         var nabla_w = try self.alloc_nabla_w(allocator);
         defer self.free_nabla(allocator, nabla_w);
@@ -170,7 +170,7 @@ pub const Network = struct {
         }
 
         // update weights, biases
-        const scalar = eta / @intToFloat(f32, batch.len);
+        const scalar = eta / @intToFloat(f64, batch.len);
         for (self.weights) |_, i| {
             var weight = self.weights[i];
             nabla_w[i].scale(scalar);
@@ -183,7 +183,7 @@ pub const Network = struct {
         }
     }
 
-    pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []const DataPoint, eta: f32) !void {
+    pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []const DataPoint, eta: f64) !void {
         const batch_size = 10;
         // TODO: shuffle training data
         var i: usize = 0;
@@ -278,9 +278,9 @@ pub const Network = struct {
     }
 };
 
-fn find_max_index(buf: []f32) usize {
+fn find_max_index(buf: []f64) usize {
     var max_i: usize = 0;
-    var max: f32 = buf[0];
+    var max: f64 = buf[0];
     for (buf) |val, i| {
         if (i == 0) {
             continue;
@@ -304,7 +304,7 @@ fn find_max_index(buf: []f32) usize {
 /// [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]
 ///  0  1  2  3  4  5  6  7  8  9
 /// ```
-fn write_digit(digit: u8, buf: []f32) void {
+fn write_digit(digit: u8, buf: []f64) void {
     // clear all
     for (buf) |_, i| {
         buf[i] = 0;
@@ -313,9 +313,9 @@ fn write_digit(digit: u8, buf: []f32) void {
 }
 
 /// Assumed to be the same length
-fn copy_image_data(input: []const u8, output: []f32) void {
+fn copy_image_data(input: []const u8, output: []f64) void {
     for (input) |pixel, i| {
-        output[i] = @intToFloat(f32, pixel);
+        output[i] = @intToFloat(f64, pixel);
     }
 }
 
@@ -327,9 +327,9 @@ pub fn make_mnist_data_points(allocator: std.mem.Allocator, x: []const u8, x_chu
     while (i < x.len) {
         //std.debug.print("i: {}\n", .{i});
         const slice = x[i .. i + x_chunk_size];
-        const x_buffer = try allocator.alloc(f32, x_chunk_size);
+        const x_buffer = try allocator.alloc(f64, x_chunk_size);
         copy_image_data(slice, x_buffer);
-        const y_buffer = try allocator.alloc(f32, y_output_size);
+        const y_buffer = try allocator.alloc(f64, y_output_size);
         write_digit(y[idx], y_buffer);
 
         result[idx] = DataPoint{
@@ -398,29 +398,29 @@ test "feedforward test" {
     var layer_sizes = [_]usize{ 2, 2, 2 };
     var network = try alloc_network(allocator, &layer_sizes);
     defer free_network(allocator, network);
-    var w_1 = [_]f32{
+    var w_1 = [_]f64{
         1, 0,
         0, 1,
     };
-    var b_1 = [_]f32{
+    var b_1 = [_]f64{
         0.5,
         0.5,
     };
     network.weights[0].copy_data_unsafe(&w_1);
     network.biases[0].copy_data_unsafe(&b_1);
 
-    var w_2 = [_]f32{
+    var w_2 = [_]f64{
         -1, 0,
         0,  1,
     };
-    var b_2 = [_]f32{
+    var b_2 = [_]f64{
         0.2,
         0.2,
     };
 
     network.weights[1].copy_data_unsafe(&w_2);
     network.biases[1].copy_data_unsafe(&b_2);
-    var input_x = [_]f32{
+    var input_x = [_]f64{
         0.1,
         0.1,
     };
@@ -429,13 +429,13 @@ test "feedforward test" {
         .rows = 2,
         .cols = 1,
     };
-    const TOLERANCE = 1e-6;
+    const TOLERANCE = 1e-9;
 
     var res = try network.feedforward(allocator, input);
     defer linalg.free_matrix(allocator, res);
 
     // var output = network.output_layer();
-    var expected_out = [_]f32{ 0.3903940131009935, 0.6996551604890665 };
+    var expected_out = [_]f64{ 0.3903940131009935, 0.6996551604890665 };
     try std.testing.expectApproxEqRel(expected_out[0], res.data[0], TOLERANCE);
     try std.testing.expectApproxEqRel(expected_out[1], res.data[1], TOLERANCE);
 }

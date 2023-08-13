@@ -2,8 +2,8 @@ const std = @import("std");
 /// Computes inner (dot) product.
 ///
 /// Input vectors assumed to be of equal length.
-pub fn inner_product(vec1: []f32, vec2: []f32) f32 {
-    var result: f32 = 0;
+pub fn inner_product(vec1: []f64, vec2: []f64) f64 {
+    var result: f64 = 0;
     for (vec1) |val, i| {
         const other_val = vec2[i];
         result += val * other_val;
@@ -12,7 +12,7 @@ pub fn inner_product(vec1: []f32, vec2: []f32) f32 {
 }
 
 /// Add `vec1` and `vec2`, store result in `out`
-pub fn sum(vec1: []f32, vec2: []const f32, out: []f32) void {
+pub fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
     for (vec1) |val, i| {
         const other_val = vec2[i];
         out[i] = val + other_val;
@@ -20,7 +20,7 @@ pub fn sum(vec1: []f32, vec2: []const f32, out: []f32) void {
 }
 
 /// Subtract `vec2` from `vec1`, store result in `out`
-pub fn subtract(vec1: []f32, vec2: []const f32, out: []f32) void {
+pub fn subtract(vec1: []f64, vec2: []const f64, out: []f64) void {
     for (vec1) |val, i| {
         const other_val = vec2[i];
         out[i] = val - other_val;
@@ -31,7 +31,7 @@ pub fn subtract(vec1: []f32, vec2: []const f32, out: []f32) void {
 ///
 /// Assumes `out` is allocated to be the same length as both
 /// `vec1` and `vec2`.
-pub fn hadamard_product(vec1: []f32, vec2: []f32, out: []f32) void {
+pub fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
     for (vec1) |el1, i| {
         const el2 = vec2[i];
         out[i] = el1 * el2;
@@ -56,12 +56,12 @@ pub fn transpose(in: Matrix, out: *Matrix) void {
     }
 }
 
-pub fn accumulate(acc: []f32, addend: []f32) void {
+pub fn accumulate(acc: []f64, addend: []f64) void {
     sum(acc, addend, acc);
 }
 
 pub const Matrix = struct {
-    data: []f32,
+    data: []f64,
     rows: usize,
     cols: usize,
 
@@ -92,10 +92,10 @@ pub const Matrix = struct {
     /// to the vector (left multiplication),
     /// assuming correct dimensions.
     /// Writes the result to out
-    pub fn apply(self: Matrix, vec: []const f32, out: []f32) void {
+    pub fn apply(self: Matrix, vec: []const f64, out: []f64) void {
         var i: usize = 0;
         while (i < self.rows) : (i += 1) {
-            var acc: f32 = 0;
+            var acc: f64 = 0;
             var j: usize = 0;
             while (j < self.cols) : (j += 1) {
                 var value = self.at(i, j);
@@ -132,7 +132,7 @@ pub const Matrix = struct {
     }
 
     /// scales all matrix elements in-place
-    pub fn scale(self: Matrix, scalar: f32) void {
+    pub fn scale(self: Matrix, scalar: f64) void {
         for (self.data) |elem, i| {
             self.data[i] = elem * scalar;
         }
@@ -151,7 +151,7 @@ pub const Matrix = struct {
         while (i < out.num_rows()) : (i += 1) {
             var j: usize = 0;
             while (j < out.num_cols()) : (j += 1) {
-                var acc: f32 = 0;
+                var acc: f64 = 0;
                 var k: usize = 0;
                 while (k < self.num_cols()) : (k += 1) {
                     acc += self.at(i, k) * right.at(k, j);
@@ -171,7 +171,7 @@ pub const Matrix = struct {
     /// Parameters:
     ///   i - 0-based row index
     ///   j - 0-based column index
-    pub fn at(self: Matrix, i: usize, j: usize) f32 {
+    pub fn at(self: Matrix, i: usize, j: usize) f64 {
         var index = self.get_offset(i, j);
         return self.data[index];
     }
@@ -182,14 +182,14 @@ pub const Matrix = struct {
     ///   i - 0-based row index
     ///   j - 0-based column index
     ///   value - value to set
-    pub fn set(self: Matrix, i: usize, j: usize, value: f32) void {
+    pub fn set(self: Matrix, i: usize, j: usize, value: f64) void {
         var index = self.get_offset(i, j);
         self.data[index] = value;
     }
 
     /// Copies the input data into its own data buffer
     /// without checking bounds
-    pub fn copy_data_unsafe(self: Matrix, data: []f32) void {
+    pub fn copy_data_unsafe(self: Matrix, data: []f64) void {
         for (data) |elem, i| {
             self.data[i] = elem;
         }
@@ -197,7 +197,7 @@ pub const Matrix = struct {
 };
 
 pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: usize, cols: usize) error{OutOfMemory}!void {
-    matrix.data = try allocator.alloc(f32, rows * cols);
+    matrix.data = try allocator.alloc(f64, rows * cols);
     matrix.rows = rows;
     matrix.cols = cols;
 }
@@ -213,7 +213,7 @@ pub fn alloc_matrix(allocator: std.mem.Allocator, rows: usize, cols: usize) erro
 }
 
 /// Copies the data input into allocated memory
-pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols: usize, data: []const f32) error{ DimensionsMismatch, OutOfMemory }!*Matrix {
+pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols: usize, data: []const f64) error{ DimensionsMismatch, OutOfMemory }!*Matrix {
     if (rows * cols != data.len) {
         return error.DimensionsMismatch;
     }
@@ -238,7 +238,7 @@ pub fn matrix_multiply(allocator: std.mem.Allocator, matrix_left: Matrix, matrix
 const err_tolerance = 1e-9;
 
 test "matrix application test" {
-    var matrix_data = [_]f32{
+    var matrix_data = [_]f64{
         1, 2, 1,
         4, 3, 4,
     };
@@ -247,28 +247,28 @@ test "matrix application test" {
         .rows = 2,
         .cols = 3,
     };
-    var vec = [_]f32{ 3, 2, 1 };
-    var result = [_]f32{0} ** 2;
+    var vec = [_]f64{ 3, 2, 1 };
+    var result = [_]f64{0} ** 2;
     matrix.apply(&vec, &result);
     // (8 22)^T
-    var expected_0: f32 = 8;
-    var expected_1: f32 = 22;
+    var expected_0: f64 = 8;
+    var expected_1: f64 = 22;
     try std.testing.expectApproxEqRel(expected_0, result[0], err_tolerance);
     try std.testing.expectApproxEqRel(expected_1, result[1], err_tolerance);
 }
 
 test "accumulate test" {
-    var vector = [_]f32{ 1, 2 };
-    var addend = [_]f32{ 2, 3 };
+    var vector = [_]f64{ 1, 2 };
+    var addend = [_]f64{ 2, 3 };
     accumulate(&vector, &addend);
-    var expected_0: f32 = 3;
-    var expected_1: f32 = 5;
+    var expected_0: f64 = 3;
+    var expected_1: f64 = 5;
     try std.testing.expectApproxEqRel(expected_0, vector[0], err_tolerance);
     try std.testing.expectApproxEqRel(expected_1, vector[1], err_tolerance);
 }
 
 test "transpose test" {
-    var matrix_data = [_]f32{
+    var matrix_data = [_]f64{
         1, 2, 3,
         4, 5, 6,
     };
@@ -277,7 +277,7 @@ test "transpose test" {
         .rows = 2,
         .cols = 3,
     };
-    var t_matrix_init = [_]f32{0} ** matrix_data.len;
+    var t_matrix_init = [_]f64{0} ** matrix_data.len;
     var t_matrix = Matrix{
         .data = &t_matrix_init,
         .rows = 0,
@@ -288,16 +288,16 @@ test "transpose test" {
     var expected_cols: usize = 2;
     try std.testing.expectEqual(expected_rows, t_matrix.rows);
     try std.testing.expectEqual(expected_cols, t_matrix.cols);
-    var result_data = [_]f32{
+    var result_data = [_]f64{
         1, 4,
         2, 5,
         3, 6,
     };
-    try std.testing.expectEqualSlices(f32, &result_data, t_matrix.data);
+    try std.testing.expectEqualSlices(f64, &result_data, t_matrix.data);
 }
 
 test "matrix multiplication test" {
-    const mat_t = f32;
+    const mat_t = f64;
     var data = [_]mat_t{
         1, 2, 3,
         3, 1, 4,
@@ -334,7 +334,7 @@ test "matrix multiplication test" {
 }
 
 test "outer product test" {
-    const mat_t = f32;
+    const mat_t = f64;
     var data = [_]mat_t{
         1,
         2,
@@ -374,7 +374,7 @@ test "outer product test" {
 }
 
 test "inner product test" {
-    var data_a_t = [_]f32{
+    var data_a_t = [_]f64{
         1, 2, 3,
     };
     var a_t = Matrix{
@@ -387,20 +387,20 @@ test "inner product test" {
         .rows = data_a_t.len,
         .cols = 1,
     };
-    var out_data = [_]f32{0};
+    var out_data = [_]f64{0};
     var out = Matrix{
         .data = &out_data,
         .rows = 1,
         .cols = 1,
     };
     try a_t.multiply(a, &out);
-    var expected_out_data = [_]f32{14};
-    try std.testing.expectEqualSlices(f32, &expected_out_data, out.data);
+    var expected_out_data = [_]f64{14};
+    try std.testing.expectEqualSlices(f64, &expected_out_data, out.data);
 }
 
 test "linear transform test with allocation" {
     const allocator = std.testing.allocator;
-    var identity_matrix_data = [_]f32{
+    var identity_matrix_data = [_]f64{
         1, 0, 0,
         0, 1, 0,
         0, 0, 1,
@@ -408,7 +408,7 @@ test "linear transform test with allocation" {
     const identity_matrix = try alloc_matrix_with_values(allocator, 3, 3, &identity_matrix_data);
     defer free_matrix(allocator, identity_matrix);
 
-    var vector_data = [_]f32{
+    var vector_data = [_]f64{
         4,
         0,
         223,
@@ -419,5 +419,5 @@ test "linear transform test with allocation" {
     const result = try matrix_multiply(allocator, identity_matrix.*, some_vector.*);
     defer free_matrix(allocator, result);
 
-    try std.testing.expectEqualSlices(f32, result.data, some_vector.data);
+    try std.testing.expectEqualSlices(f64, result.data, some_vector.data);
 }
