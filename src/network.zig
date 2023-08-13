@@ -250,7 +250,46 @@ pub const Network = struct {
         var result = try linalg.alloc_matrix_with_values(allocator, activation_ptr.num_rows(), activation_ptr.num_cols(), activation_ptr.data);
         return result;
     }
+
+    fn eval_point(self: Network, allocator: std.mem.Allocator, point: DataPoint) !bool {
+        var x_matrix = linalg.Matrix{
+            .data = point.x,
+            .rows = point.x.len,
+            .cols = 1,
+        };
+        var output = try self.feedforward(allocator, x_matrix);
+        defer linalg.free_matrix(allocator, output);
+        const digit = find_max_index(output.data);
+        const expected = find_max_index(point.y);
+        return digit == expected;
+    }
+
+    pub fn evaluate(self: Network, allocator: std.mem.Allocator, test_data: []DataPoint) !usize {
+        var num_correct: usize = 0;
+        for (test_data) |point| {
+            const is_correct = try self.eval_point(allocator, point);
+            if (is_correct) {
+                num_correct += 1;
+            }
+        }
+        return num_correct;
+    }
 };
+
+fn find_max_index(buf: []f32) u8 {
+    var max_i: usize = 0;
+    var max: f32 = buf[0];
+    for (buf) |val, i| {
+        if (i == 0) {
+            continue;
+        }
+        if (val > max) {
+            max_i = i;
+            max = val;
+        }
+    }
+    return max_i;
+}
 
 /// Writes the decimal digit 0-9 to a buffer
 /// of size 10, where the value at the position
