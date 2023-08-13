@@ -191,9 +191,11 @@ pub const Network = struct {
             const remaining = train_data.len - 1 - i;
             const end_indx = if (remaining >= batch_size) i + batch_size else i + remaining;
             const batch_view = train_data[i..end_indx];
-            std.debug.print("updating with batch size {} at i {}\n", .{ batch_view.len, i });
             try self.update_with_batch(allocator, batch_view, eta);
             i += batch_size;
+            if (i % 1000 == 0) {
+                std.debug.print("finished {} of {}\n", .{ i, train_data.len });
+            }
         }
     }
 
@@ -276,7 +278,7 @@ pub const Network = struct {
     }
 };
 
-fn find_max_index(buf: []f32) u8 {
+fn find_max_index(buf: []f32) usize {
     var max_i: usize = 0;
     var max: f32 = buf[0];
     for (buf) |val, i| {

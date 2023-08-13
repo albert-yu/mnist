@@ -63,17 +63,42 @@ pub fn main() !void {
     const img_start_offset = 16;
     const images = train_images_buffer[img_start_offset..];
 
+    // read test images
+    const TEST_IMAGES_FILE = "data/t10k-images.idx3-ubyte";
+    const test_images_buffer = try read_file(allocator, TEST_IMAGES_FILE);
+    defer allocator.free(test_images_buffer);
+    const test_images = test_images_buffer[img_start_offset..];
+
+    // read test labels
+    const TEST_LABELS_FILE = "data/t10k-labels.idx1-ubyte";
+    const test_labels_buffer = try read_file(allocator, TEST_LABELS_FILE);
+    defer allocator.free(test_labels_buffer);
+    const test_labels = test_labels_buffer[start_index..];
+
     const image_size = num_rows * num_cols;
 
     const DIGITS = 10;
     std.debug.print("making training data points...", .{});
     const train_data_points = try nn.make_mnist_data_points(allocator, images, image_size, labels, DIGITS);
     defer nn.free_mnist_data_points(allocator, train_data_points);
-    std.debug.print("made {} data points.\n", .{train_data_points.len});
+    std.debug.print("made {} train data points.\n", .{train_data_points.len});
 
     const HIDDEN_LAYER_SIZE = 30;
     const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
     var network = try nn.alloc_network(allocator, &layer_sizes);
     defer nn.free_network(allocator, network);
+    std.debug.print("training...", .{});
     try network.sgd(allocator, train_data_points, 0.05);
+    std.debug.print("done.\n", .{});
+
+    std.debug.print("making test data points...", .{});
+    const test_data = try nn.make_mnist_data_points(allocator, test_images, image_size, test_labels, DIGITS);
+    defer nn.free_mnist_data_points(allocator, train_data_points);
+    std.debug.print("made {} test data points.\n", .{train_data_points.len});
+
+    std.debug.print("evaluating...", .{});
+
+    const num_correct = try network.evaluate(allocator, test_data);
+
+    std.debug.print("done. {}/10000 correct\n", .{num_correct});
 }
