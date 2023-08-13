@@ -91,7 +91,34 @@ pub const Network = struct {
 
         // feedforward, and save the activations
         var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
+        for (activations) |_, i| {
+            if (i == 0) {
+                continue;
+            }
+            const b = self.biases[i - 1];
+            try linalg.alloc_matrix_data(allocator, &activations[i], b.num_rows(), b.num_cols());
+        }
+        defer {
+            for (activations) |activation, i| {
+                if (i == 0) {
+                    continue;
+                }
+                linalg.free_matrix_data(allocator, activation);
+            }
+            allocator.free(activations);
+        }
         var z_results = try allocator.alloc(linalg.Matrix, self.layer_count() - 1);
+        for (z_results) |_, i| {
+            const b = self.biases[i];
+            try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
+        }
+        defer {
+            for (z_results) |z| {
+                linalg.free_matrix_data(allocator, z);
+            }
+            allocator.free(z_results);
+        }
+
         var activation_ptr: linalg.Matrix = x_matrix;
         activations[0] = x_matrix;
         for (self.weights) |w, i| {
@@ -99,8 +126,6 @@ pub const Network = struct {
             var next_activation = activations[i + 1];
 
             // dimension of activation = dimension of b
-            try linalg.alloc_matrix_data(allocator, &next_activation, b.num_rows(), b.num_cols());
-            try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
 
             // w * x
             try w.multiply(activation_ptr, &z_results[i]);
@@ -119,17 +144,6 @@ pub const Network = struct {
         // TODO: make these all matrix operations
         maths.apply_sigmoid_prime_in_place(z_results[z_results.len - 1].data);
         linalg.hadamard_product(delta_ptr.data, z_results[z_results.len - 1].data, delta_ptr.data);
-
-        // garbage collection
-        for (activations) |activation| {
-            linalg.free_matrix_data(allocator, activation);
-        }
-        defer allocator.free(activations);
-
-        for (z_results) |z_vec| {
-            linalg.free_matrix_data(allocator, z_vec);
-        }
-        defer allocator.free(z_results);
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
     }
