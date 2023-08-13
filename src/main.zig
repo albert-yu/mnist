@@ -87,7 +87,7 @@ pub fn main() !void {
     const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
     var network = try nn.alloc_network(allocator, &layer_sizes);
     defer nn.free_network(allocator, network);
-    std.debug.print("training...", .{});
+    std.debug.print("training...\n", .{});
     try network.sgd(allocator, train_data_points, 0.05);
     std.debug.print("done.\n", .{});
 
@@ -100,5 +100,5 @@ pub fn main() !void {
 
     const num_correct = try network.evaluate(allocator, test_data);
 
-    std.debug.print("done. {}/10000 correct\n", .{num_correct});
+    std.debug.print("done. {}/{} correct\n", .{ num_correct, test_data.len });
 }

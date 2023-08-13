@@ -15,6 +15,20 @@ fn alloc_copy(comptime T: type, allocator: std.mem.Allocator, source: []const T)
     return buffer;
 }
 
+const randgen = std.rand.DefaultPrng;
+
+fn shuffle(comptime T: type, arr: []T) void {
+    var rand = randgen.init(0);
+    for (arr) |elem, i| {
+        const random_offset = rand.random().int(usize);
+        const new_i = (i + random_offset) % arr.len;
+        // swap
+        const temp = arr[new_i];
+        arr[new_i] = elem;
+        arr[i] = temp;
+    }
+}
+
 const BackpropResult = struct {
     delta_nabla_weights: []linalg.Matrix,
     delta_nabla_biases: []linalg.Matrix,
@@ -183,9 +197,8 @@ pub const Network = struct {
         }
     }
 
-    pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []const DataPoint, eta: f64) !void {
+    fn sgd_epoch(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
         const batch_size = 10;
-        // TODO: shuffle training data
         var i: usize = 0;
         while (i < train_data.len) {
             const remaining = train_data.len - 1 - i;
@@ -193,9 +206,18 @@ pub const Network = struct {
             const batch_view = train_data[i..end_indx];
             try self.update_with_batch(allocator, batch_view, eta);
             i += batch_size;
-            if (i % 1000 == 0) {
-                std.debug.print("finished {} of {}\n", .{ i, train_data.len });
-            }
+        }
+    }
+
+    pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
+        const EPOCHS = 100;
+        var epoch: usize = 0;
+        while (epoch < EPOCHS) {
+            shuffle(DataPoint, train_data);
+            std.debug.print("started epoch {} of {}\n", .{ epoch + 1, EPOCHS });
+            try self.sgd_epoch(allocator, train_data, eta);
+            std.debug.print("finished epoch {} of {}\n", .{ epoch + 1, EPOCHS });
+            epoch += 1;
         }
     }
 
