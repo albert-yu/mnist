@@ -93,8 +93,8 @@ pub fn main() !void {
 
     std.debug.print("making test data points...", .{});
     const test_data = try nn.make_mnist_data_points(allocator, test_images, image_size, test_labels, DIGITS);
-    defer nn.free_mnist_data_points(allocator, train_data_points);
-    std.debug.print("made {} test data points.\n", .{train_data_points.len});
+    defer nn.free_mnist_data_points(allocator, test_data);
+    std.debug.print("made {} test data points.\n", .{test_data.len});
 
     std.debug.print("evaluating...", .{});
 
