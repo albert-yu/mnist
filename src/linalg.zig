@@ -186,6 +186,14 @@ pub const Matrix = struct {
         var index = self.get_offset(i, j);
         self.data[index] = value;
     }
+
+    /// Copies the input data into its own data buffer
+    /// without checking bounds
+    pub fn copy_data_unsafe(self: Matrix, data: []f32) void {
+        for (data) |elem, i| {
+            self.data[i] = elem;
+        }
+    }
 };
 
 pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: usize, cols: usize) error{OutOfMemory}!void {
@@ -216,8 +224,8 @@ pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols:
     return matrix;
 }
 
-pub fn free_matrix(allocator: std.mem.Allocator, matrix: Matrix) void {
-    free_matrix_data(allocator, matrix);
+pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
+    free_matrix_data(allocator, matrix.*);
     allocator.destroy(matrix);
 }
 
