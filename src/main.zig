@@ -45,10 +45,6 @@ pub fn main() !void {
     defer allocator.free(train_labels_buffer);
 
     // read training labels
-    const count_offset = 4;
-    const train_count = get_double_word(train_labels_buffer, count_offset);
-
-    std.debug.print("label count: {}\n", .{train_count});
     const start_index = 8;
     const labels = train_labels_buffer[start_index..];
 
