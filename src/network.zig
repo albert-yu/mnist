@@ -198,12 +198,7 @@ pub const Network = struct {
     }
 
     /// Need to free result
-    pub fn feedforward(self: Network, allocator: std.mem.Allocator, point: DataPoint) !*linalg.Matrix {
-        var x_matrix = linalg.Matrix{
-            .data = point.x,
-            .rows = point.x.len,
-            .cols = 1,
-        };
+    pub fn feedforward(self: Network, allocator: std.mem.Allocator, x_matrix: linalg.Matrix) !*linalg.Matrix {
         // feedforward, and save the activations
         var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
         for (activations) |_, i| {
@@ -388,9 +383,10 @@ test "feedforward test" {
         0.1,
         0.1,
     };
-    var input = DataPoint{
-        .x = &input_x,
-        .y = undefined,
+    var input = linalg.Matrix{
+        .data = &input_x,
+        .rows = 2,
+        .cols = 1,
     };
     const TOLERANCE = 1e-6;
 
