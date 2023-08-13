@@ -7,6 +7,28 @@
             "args": [
                 "build"
             ]
+        },
+        {
+            "label": "test linalg",
+            "command": "zig",
+            "args": [
+                "test",
+                "src/linalg.zig"
+            ],
+            "problemMatcher": [
+                "$zig"
+            ]
+        },
+        {
+            "label": "test network",
+            "command": "zig",
+            "args": [
+                "test",
+                "src/network.zig"
+            ],
+            "problemMatcher": [
+                "$zig"
+            ]
         }
     ]
 }
