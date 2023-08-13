@@ -29,6 +29,13 @@ fn shuffle(comptime T: type, arr: []T) void {
     }
 }
 
+const FeedforwardResult = struct { activation: *linalg.Matrix, z: *linalg.Matrix };
+
+fn free_feedforward(allocator: std.mem.Allocator, result: FeedforwardResult) void {
+    linalg.free_matrix(allocator, result.activation);
+    linalg.free_matrix(allocator, result.z);
+}
+
 const BackpropResult = struct {
     delta_nabla_weights: []linalg.Matrix,
     delta_nabla_biases: []linalg.Matrix,
@@ -226,7 +233,7 @@ pub const Network = struct {
     }
 
     /// Need to free result
-    pub fn feedforward(self: Network, allocator: std.mem.Allocator, x_matrix: linalg.Matrix) !*linalg.Matrix {
+    pub fn feedforward(self: Network, allocator: std.mem.Allocator, x_matrix: linalg.Matrix) !FeedforwardResult {
         // feedforward, and save the activations
         var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
         for (activations) |_, i| {
@@ -275,8 +282,12 @@ pub const Network = struct {
         }
 
         // copy to result
-        var result = try linalg.alloc_matrix_with_values(allocator, activation_ptr.num_rows(), activation_ptr.num_cols(), activation_ptr.data);
-        return result;
+        var activation = try linalg.matrix_copy(allocator, activation_ptr);
+        var z = try linalg.matrix_copy(allocator, z_results[z_results.len - 1]);
+        return FeedforwardResult{
+            .activation = activation,
+            .z = z,
+        };
     }
 
     fn eval_point(self: Network, allocator: std.mem.Allocator, point: DataPoint) !bool {
@@ -286,8 +297,8 @@ pub const Network = struct {
             .cols = 1,
         };
         var output = try self.feedforward(allocator, x_matrix);
-        defer linalg.free_matrix(allocator, output);
-        const digit = find_max_index(output.data);
+        defer free_feedforward(allocator, output);
+        const digit = find_max_index(output.activation.data);
         const expected = find_max_index(point.y);
         return digit == expected;
     }
@@ -458,10 +469,10 @@ test "feedforward test" {
     const TOLERANCE = 1e-9;
 
     var res = try network.feedforward(allocator, input);
-    defer linalg.free_matrix(allocator, res);
+    defer free_feedforward(allocator, res);
 
     // var output = network.output_layer();
     var expected_out = [_]f64{ 0.3903940131009935, 0.6996551604890665 };
-    try std.testing.expectApproxEqRel(expected_out[0], res.data[0], TOLERANCE);
-    try std.testing.expectApproxEqRel(expected_out[1], res.data[1], TOLERANCE);
+    try std.testing.expectApproxEqRel(expected_out[0], res.activation.data[0], TOLERANCE);
+    try std.testing.expectApproxEqRel(expected_out[1], res.activation.data[1], TOLERANCE);
 }

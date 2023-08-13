@@ -235,6 +235,11 @@ pub fn matrix_multiply(allocator: std.mem.Allocator, matrix_left: Matrix, matrix
     return out_matrix;
 }
 
+pub fn matrix_copy(allocator: std.mem.Allocator, matrix: Matrix) !*Matrix {
+    var result = try alloc_matrix_with_values(allocator, matrix.num_rows(), matrix.num_cols(), matrix.data);
+    return result;
+}
+
 const err_tolerance = 1e-9;
 
 test "matrix application test" {
