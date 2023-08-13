@@ -110,61 +110,18 @@ pub const Network = struct {
             .cols = 1,
         };
 
-        // feedforward, and save the activations
-        var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
-        for (activations) |_, i| {
-            if (i == 0) {
-                continue;
-            }
-            const b = self.biases[i - 1];
-            try linalg.alloc_matrix_data(allocator, &activations[i], b.num_rows(), b.num_cols());
-        }
-        defer {
-            for (activations) |activation, i| {
-                if (i == 0) {
-                    continue;
-                }
-                linalg.free_matrix_data(allocator, activation);
-            }
-            allocator.free(activations);
-        }
-        var z_results = try allocator.alloc(linalg.Matrix, self.layer_count() - 1);
-        for (z_results) |_, i| {
-            const b = self.biases[i];
-            try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
-        }
-        defer {
-            for (z_results) |z| {
-                linalg.free_matrix_data(allocator, z);
-            }
-            allocator.free(z_results);
-        }
-
-        var activation_ptr: linalg.Matrix = x_matrix;
-        activations[0] = x_matrix;
-        for (self.weights) |w, i| {
-            const b = self.biases[i];
-            var next_activation = activations[i + 1];
-
-            // dimension of activation = dimension of b
-
-            // w * x
-            try w.multiply(activation_ptr, &z_results[i]);
-            // w * x + b = z
-            try z_results[i].add(b, &z_results[i]);
-            // sigmoid(w * x + b)
-            maths.apply_sigmoid(z_results[i].data, next_activation.data);
-            activation_ptr = next_activation;
-        }
+        var results = try self.feedforward(allocator, x_matrix);
 
         // backward pass
 
         // cost derivative
         var delta_ptr: linalg.Matrix = delta_nabla_b[delta_nabla_b.len - 1];
+        var activation_ptr = results.activation;
+        var z = results.z;
         try activation_ptr.sub(y_matrix, &delta_ptr);
         // TODO: make these all matrix operations
-        maths.apply_sigmoid_prime_in_place(z_results[z_results.len - 1].data);
-        linalg.hadamard_product(delta_ptr.data, z_results[z_results.len - 1].data, delta_ptr.data);
+        maths.apply_sigmoid_prime_in_place(z.data);
+        linalg.hadamard_product(delta_ptr.data, z.data, delta_ptr.data);
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
     }
