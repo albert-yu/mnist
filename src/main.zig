@@ -60,15 +60,16 @@ pub fn main() !void {
     // can read image count from file, but should be exactly the same as labels
     const num_rows = get_double_word(train_images_buffer, 8);
     const num_cols = get_double_word(train_images_buffer, 12);
-    std.debug.print("rows: {}, cols: {}\n", .{ num_rows, num_cols });
     const img_start_offset = 16;
     const images = train_images_buffer[img_start_offset..];
 
     const image_size = num_rows * num_cols;
 
     const DIGITS = 10;
+    std.debug.print("making training data points...", .{});
     const train_data_points = try nn.make_mnist_data_points(allocator, images, image_size, labels, DIGITS);
     defer nn.free_mnist_data_points(allocator, train_data_points);
+    std.debug.print("made {} data points.\n", .{train_data_points.len});
 
     const HIDDEN_LAYER_SIZE = 30;
     const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
