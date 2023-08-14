@@ -177,6 +177,13 @@ pub const Network = struct {
         }
     }
 
+    fn print_layer(self: Network, layer: usize) void {
+        std.debug.print("weights at {}\n", .{layer});
+        self.weights[layer].print();
+        std.debug.print("biases at {}\n", .{layer});
+        self.biases[layer].print();
+    }
+
     pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
         const EPOCHS = 10;
         var epoch: usize = 0;
@@ -185,6 +192,7 @@ pub const Network = struct {
             std.debug.print("started epoch {} of {}\n", .{ epoch + 1, EPOCHS });
             try self.sgd_epoch(allocator, train_data, eta);
             std.debug.print("finished epoch {} of {}\n", .{ epoch + 1, EPOCHS });
+            self.print_layer(1);
             epoch += 1;
         }
     }
