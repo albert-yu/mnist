@@ -29,11 +29,18 @@ fn shuffle(comptime T: type, arr: []T) void {
     }
 }
 
-const FeedforwardResult = struct { activation: *linalg.Matrix, z: *linalg.Matrix };
+const FeedforwardResult = struct { activations: []linalg.Matrix, z_results: []linalg.Matrix };
 
 fn free_feedforward(allocator: std.mem.Allocator, result: FeedforwardResult) void {
-    linalg.free_matrix(allocator, result.activation);
-    linalg.free_matrix(allocator, result.z);
+    for (result.activations) |activation| {
+        linalg.free_matrix_data(allocator, activation);
+    }
+    allocator.free(result.activations);
+
+    for (result.z_results) |z| {
+        linalg.free_matrix_data(allocator, z);
+    }
+    allocator.free(result.z_results);
 }
 
 const BackpropResult = struct {
@@ -110,14 +117,15 @@ pub const Network = struct {
             .cols = 1,
         };
 
-        var results = try self.feedforward(allocator, x_matrix);
+        var fed_forward = try self.feedforward(allocator, x_matrix);
+        defer free_feedforward(allocator, fed_forward);
 
         // backward pass
 
         // cost derivative
         var delta_ptr: linalg.Matrix = delta_nabla_b[delta_nabla_b.len - 1];
-        var activation_ptr = results.activation;
-        var z = results.z;
+        var activation_ptr = fed_forward.activations[fed_forward.activations.len - 1];
+        var z = fed_forward.z_results[fed_forward.z_results.len - 1];
         try activation_ptr.sub(y_matrix, &delta_ptr);
         // TODO: make these all matrix operations
         maths.apply_sigmoid_prime_in_place(z.data);
@@ -203,34 +211,20 @@ pub const Network = struct {
         var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
         for (activations) |_, i| {
             if (i == 0) {
-                continue;
+                try linalg.alloc_matrix_data(allocator, &activations[i], x_matrix.num_rows(), x_matrix.num_cols());
+            } else {
+                const b = self.biases[i - 1];
+                try linalg.alloc_matrix_data(allocator, &activations[i], b.num_rows(), b.num_cols());
             }
-            const b = self.biases[i - 1];
-            try linalg.alloc_matrix_data(allocator, &activations[i], b.num_rows(), b.num_cols());
-        }
-        defer {
-            for (activations) |activation, i| {
-                if (i == 0) {
-                    continue;
-                }
-                linalg.free_matrix_data(allocator, activation);
-            }
-            allocator.free(activations);
         }
         var z_results = try allocator.alloc(linalg.Matrix, self.layer_count() - 1);
         for (z_results) |_, i| {
             const b = self.biases[i];
             try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
         }
-        defer {
-            for (z_results) |z| {
-                linalg.free_matrix_data(allocator, z);
-            }
-            allocator.free(z_results);
-        }
 
-        var activation_ptr: linalg.Matrix = x_matrix;
-        activations[0] = x_matrix;
+        activations[0].copy_data_unsafe(x_matrix.data);
+        var activation_ptr: linalg.Matrix = activations[0];
         for (self.weights) |w, i| {
             const b = self.biases[i];
             var next_activation = activations[i + 1];
@@ -247,11 +241,9 @@ pub const Network = struct {
         }
 
         // copy to result
-        var activation = try linalg.matrix_copy(allocator, activation_ptr);
-        var z = try linalg.matrix_copy(allocator, z_results[z_results.len - 1]);
         return FeedforwardResult{
-            .activation = activation,
-            .z = z,
+            .activations = activations,
+            .z_results = z_results,
         };
     }
 
@@ -263,7 +255,8 @@ pub const Network = struct {
         };
         var output = try self.feedforward(allocator, x_matrix);
         defer free_feedforward(allocator, output);
-        const digit = find_max_index(output.activation.data);
+        var activations = output.activations;
+        const digit = find_max_index(activations[activations.len - 1].data);
         const expected = find_max_index(point.y);
         return digit == expected;
     }
@@ -438,6 +431,7 @@ test "feedforward test" {
 
     // var output = network.output_layer();
     var expected_out = [_]f64{ 0.3903940131009935, 0.6996551604890665 };
-    try std.testing.expectApproxEqRel(expected_out[0], res.activation.data[0], TOLERANCE);
-    try std.testing.expectApproxEqRel(expected_out[1], res.activation.data[1], TOLERANCE);
+    var activation = res.activations[res.activations.len - 1];
+    try std.testing.expectApproxEqRel(expected_out[0], activation.data[0], TOLERANCE);
+    try std.testing.expectApproxEqRel(expected_out[1], activation.data[1], TOLERANCE);
 }
