@@ -43,6 +43,16 @@ fn free_feedforward(allocator: std.mem.Allocator, result: FeedforwardResult) voi
     allocator.free(result.z_results);
 }
 
+fn delta_to_w(allocator: std.mem.Allocator, delta_ptr: *linalg.Matrix, prev_activation: *linalg.Matrix, nabla_w_ptr: *linalg.Matrix) !void {
+    // activations[-l].transpose()
+    var prev_activation_transposed = try linalg.alloc_matrix(allocator, prev_activation.cols, prev_activation.rows);
+    defer linalg.free_matrix(allocator, prev_activation);
+    linalg.transpose(prev_activation.*, prev_activation_transposed);
+
+    // delta (dot) activations[-2].transpose()
+    try delta_ptr.multiply(prev_activation_transposed.*, nabla_w_ptr);
+}
+
 const BackpropResult = struct {
     delta_nabla_weights: []linalg.Matrix,
     delta_nabla_biases: []linalg.Matrix,
@@ -120,16 +130,56 @@ pub const Network = struct {
         var fed_forward = try self.feedforward(allocator, x_matrix);
         defer free_feedforward(allocator, fed_forward);
 
+        var activations = fed_forward.activations;
+        var z_results = fed_forward.z_results;
+
         // backward pass
 
-        // cost derivative
-        var delta_ptr: linalg.Matrix = delta_nabla_b[delta_nabla_b.len - 1];
-        var activation_ptr = fed_forward.activations[fed_forward.activations.len - 1];
-        var z = fed_forward.z_results[fed_forward.z_results.len - 1];
-        try activation_ptr.sub(y_matrix, &delta_ptr);
-        // TODO: make these all matrix operations
-        maths.apply_sigmoid_prime_in_place(z.data);
-        linalg.hadamard_product(delta_ptr.data, z.data, delta_ptr.data);
+        // this pointer is used to write results to our return value,
+        // associated with nabla_b
+        var delta_ptr: *linalg.Matrix = &delta_nabla_b[delta_nabla_b.len - 1];
+
+        // cost_derivative(activations[-1], y)
+        var activation_ptr = activations[fed_forward.activations.len - 1];
+        try activation_ptr.sub(y_matrix, delta_ptr);
+
+        // cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
+        var z_last = fed_forward.z_results[fed_forward.z_results.len - 1];
+        maths.apply_sigmoid_prime_in_place(z_last.data);
+        linalg.hadamard_product(delta_ptr.data, z_last.data, delta_ptr.data);
+
+        // activations[-2].transpose()
+        var prev_activation = &activations[activations.len - 2];
+        var nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - 1];
+        try delta_to_w(allocator, delta_ptr, prev_activation, nabla_w_ptr);
+
+        var i: usize = 2;
+        while (i < self.layer_sizes.len) {
+            const z = z_results[z_results.len - i];
+            var z_copy = try z.make_copy(allocator);
+            defer linalg.free_matrix(allocator, z_copy);
+            maths.apply_sigmoid_prime(z.data, z_copy.data);
+            var w = self.weights[self.weights.len - i + 1];
+
+            // w'
+            var w_transposed = try linalg.alloc_matrix(allocator, w.rows, w.cols);
+            defer linalg.free_matrix(allocator, w_transposed);
+            linalg.transpose(w, w_transposed);
+
+            // w' (dot) delta
+            var new_delta = try delta_ptr.make_copy(allocator);
+            defer linalg.free_matrix(allocator, new_delta);
+            try w_transposed.multiply(delta_ptr.*, new_delta);
+
+            // copy result back to delta_ptr
+            delta_ptr = &delta_nabla_b[delta_nabla_b.len - i];
+            new_delta.copy_data_unsafe(delta_ptr.data);
+
+            nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - i];
+            try delta_to_w(allocator, delta_ptr, &activations[activations.len - i - 1], nabla_w_ptr);
+
+            i += 1;
+        }
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
     }

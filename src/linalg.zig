@@ -194,6 +194,11 @@ pub const Matrix = struct {
             self.data[i] = elem;
         }
     }
+
+    pub fn make_copy(self: Matrix, allocator: std.mem.Allocator) !*Matrix {
+        var copied = try alloc_matrix_with_values(allocator, self.num_rows(), self.num_cols(), self.data);
+        return copied;
+    }
 };
 
 pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: usize, cols: usize) error{OutOfMemory}!void {
