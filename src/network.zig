@@ -252,7 +252,6 @@ pub const Network = struct {
             std.debug.print("started epoch {} of {}\n", .{ epoch + 1, EPOCHS });
             try self.sgd_epoch(allocator, train_data, eta);
             std.debug.print("finished epoch {} of {}\n", .{ epoch + 1, EPOCHS });
-            self.print_layer(1);
             epoch += 1;
         }
     }
