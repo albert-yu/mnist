@@ -88,6 +88,28 @@ pub const Matrix = struct {
         std.debug.print("\n", .{});
     }
 
+    pub fn print_upper_left(self: Matrix, limit: usize) void {
+        var j: usize = 0;
+        for (self.data) |el, i| {
+            if (i >= limit) {
+                continue;
+            }
+            if (j >= limit) {
+                j += 1;
+                continue;
+            }
+            if (i % self.cols == 0) {
+                std.debug.print("\n", .{});
+                std.debug.print("{} ", .{el});
+                j = 0;
+                continue;
+            }
+            std.debug.print("{} ", .{el});
+            j += 1;
+        }
+        std.debug.print("\n", .{});
+    }
+
     /// Applies the matrix as a ar transformation
     /// to the vector (left multiplication),
     /// assuming correct dimensions.

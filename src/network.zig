@@ -162,13 +162,14 @@ pub const Network = struct {
             var w = self.weights[self.weights.len - i + 1];
 
             // w'
-            var w_transposed = try linalg.alloc_matrix(allocator, w.rows, w.cols);
+            var w_transposed = try linalg.alloc_matrix(allocator, w.cols, w.rows);
             defer linalg.free_matrix(allocator, w_transposed);
             linalg.transpose(w, w_transposed);
 
             // w' (dot) delta
-            var new_delta = try delta_ptr.make_copy(allocator);
+            var new_delta = try linalg.alloc_matrix(allocator, w_transposed.num_rows(), delta_ptr.num_cols());
             defer linalg.free_matrix(allocator, new_delta);
+
             try w_transposed.multiply(delta_ptr.*, new_delta);
 
             // copy result back to delta_ptr
@@ -231,6 +232,7 @@ pub const Network = struct {
             const end_indx = if (remaining >= batch_size) i + batch_size else i + remaining;
             const batch_view = train_data[i..end_indx];
             try self.update_with_batch(allocator, batch_view, eta);
+            self.print_layer(1);
             i += batch_size;
         }
     }
