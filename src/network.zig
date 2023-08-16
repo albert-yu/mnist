@@ -46,7 +46,7 @@ fn free_feedforward(allocator: std.mem.Allocator, result: FeedforwardResult) voi
 fn delta_to_w(allocator: std.mem.Allocator, delta_ptr: *linalg.Matrix, prev_activation: *linalg.Matrix, nabla_w_ptr: *linalg.Matrix) !void {
     // activations[-l].transpose()
     var prev_activation_transposed = try linalg.alloc_matrix(allocator, prev_activation.cols, prev_activation.rows);
-    defer linalg.free_matrix(allocator, prev_activation);
+    defer linalg.free_matrix(allocator, prev_activation_transposed);
     linalg.transpose(prev_activation.*, prev_activation_transposed);
 
     // delta (dot) activations[-2].transpose()
