@@ -232,7 +232,6 @@ pub const Network = struct {
             const end_indx = if (remaining >= batch_size) i + batch_size else i + remaining;
             const batch_view = train_data[i..end_indx];
             try self.update_with_batch(allocator, batch_view, eta);
-            self.print_layer(1);
             i += batch_size;
         }
     }
