@@ -58,7 +58,7 @@ const BackpropResult = struct {
     delta_nabla_biases: []linalg.Matrix,
 };
 
-fn free_nabla(allocator: std.mem.Allocator, buf: []linalg.Matrix) void {
+fn free_matrices(allocator: std.mem.Allocator, buf: []linalg.Matrix) void {
     for (buf) |matrix| {
         linalg.free_matrix_data(allocator, matrix);
     }
@@ -188,16 +188,16 @@ pub const Network = struct {
     fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f64) !void {
         // TODO: use just one big matrix for each batch
         var nabla_w = try self.alloc_nabla_w(allocator);
-        defer free_nabla(allocator, nabla_w);
+        defer free_matrices(allocator, nabla_w);
 
         var nabla_b = try self.alloc_nabla_b(allocator);
-        defer free_nabla(allocator, nabla_b);
+        defer free_matrices(allocator, nabla_b);
 
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
             defer {
-                free_nabla(allocator, backprop_result.delta_nabla_biases);
-                free_nabla(allocator, backprop_result.delta_nabla_weights);
+                free_matrices(allocator, backprop_result.delta_nabla_biases);
+                free_matrices(allocator, backprop_result.delta_nabla_weights);
             }
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
