@@ -84,7 +84,7 @@ pub fn main() !void {
     var network = try nn.alloc_network(allocator, &layer_sizes);
     defer nn.free_network(allocator, network);
     std.debug.print("training...\n", .{});
-    try network.sgd(allocator, train_data_points, 0.05);
+    try network.sgd(allocator, train_data_points, 0.05, 10);
     std.debug.print("done.\n", .{});
 
     std.debug.print("making test data points...", .{});

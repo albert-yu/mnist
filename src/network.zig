@@ -245,17 +245,15 @@ pub const Network = struct {
         self.biases[layer].print();
     }
 
-    pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
-        const EPOCHS = 10;
+    pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64, epochs: usize) !void {
         var epoch: usize = 0;
-        while (epoch < EPOCHS) {
+        while (epoch < epochs) {
             shuffle(DataPoint, train_data);
-            std.debug.print("started epoch {} of {}\n", .{ epoch + 1, EPOCHS });
+            std.debug.print("started epoch {} of {}\n", .{ epoch + 1, epochs });
             try self.sgd_epoch(allocator, train_data, eta);
-            std.debug.print("finished epoch {} of {}\n", .{ epoch + 1, EPOCHS });
+            std.debug.print("finished epoch {} of {}\n", .{ epoch + 1, epochs });
             epoch += 1;
         }
-        self.print_layer(1);
     }
 
     /// Need to free result
