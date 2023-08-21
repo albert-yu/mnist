@@ -523,7 +523,7 @@ test "backpropagation test" {
     const result = try network.backprop(allocator, data_point);
     defer free_backprop_result(allocator, result);
 
-    var expected_delta_b = [_]f64{ 0.125, 0.125, 0.125, 0.125, -0.125, 0.125, 0.125, 0.125, 0.125, 0.125 };
+    var expected_delta_b = [_]f64{ 0.125, 0.125, 0.125, 0.125, 0.125, -0.125, 0.125, 0.125, 0.125, 0.125 };
     try std.testing.expectEqualSlices(f64, &expected_delta_b, result.delta_nabla_biases[1].data);
 
     // expected weights for reference
