@@ -204,11 +204,11 @@ pub const Network = struct {
 
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
-                try delta_w.add(nabla_w[i], &nabla_w[i]);
+                try nabla_w[i].add(delta_w, &nabla_w[i]);
             }
 
             for (backprop_result.delta_nabla_biases) |delta_b, i| {
-                try delta_b.add(nabla_b[i], &nabla_b[i]);
+                try nabla_b[i].add(delta_b, &nabla_b[i]);
             }
         }
 
@@ -255,6 +255,7 @@ pub const Network = struct {
             std.debug.print("finished epoch {} of {}\n", .{ epoch + 1, EPOCHS });
             epoch += 1;
         }
+        self.print_layer(1);
     }
 
     /// Need to free result
