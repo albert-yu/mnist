@@ -238,11 +238,19 @@ pub const Network = struct {
         }
     }
 
-    fn print_layer(self: Network, layer: usize) void {
-        std.debug.print("weights at {}\n", .{layer});
-        self.weights[layer].print();
+    fn print_biases(self: Network, layer: usize) void {
         std.debug.print("biases at {}\n", .{layer});
         self.biases[layer].print();
+    }
+
+    fn print_weights(self: Network, layer: usize) void {
+        std.debug.print("weights at {}\n", .{layer});
+        self.weights[layer].print();
+    }
+
+    fn print_layer(self: Network, layer: usize) void {
+        self.print_weights(layer);
+        self.print_biases(layer);
     }
 
     pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64, epochs: usize) !void {
