@@ -209,6 +209,12 @@ pub const Matrix = struct {
         self.data[index] = value;
     }
 
+    pub fn set_all(self: Matrix, value: f64) void {
+        for (self.data) |_, i| {
+            self.data[i] = value;
+        }
+    }
+
     /// Copies the input data into its own data buffer
     /// without checking bounds
     pub fn copy_data_unsafe(self: Matrix, data: []f64) void {

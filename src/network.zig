@@ -90,6 +90,16 @@ pub const Network = struct {
         return self.layer_sizes.len;
     }
 
+    /// Sets all weights/biases to 0. Used for testing.
+    pub fn init_zeros(self: Network) void {
+        for (self.biases) |bias| {
+            bias.set_all(0);
+        }
+        for (self.weights) |weight| {
+            weight.set_all(0);
+        }
+    }
+
     fn alloc_nabla_w(self: Network, allocator: std.mem.Allocator) ![]linalg.Matrix {
         const weights_copy = try allocator.alloc(linalg.Matrix, self.weights.len);
 
@@ -509,6 +519,7 @@ test "backpropagation test" {
     const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
     var network = try alloc_network(allocator, &layer_sizes);
     defer free_network(allocator, network);
+    network.init_zeros();
     const result = try network.backprop(allocator, data_point);
     defer free_backprop_result(allocator, result);
 
