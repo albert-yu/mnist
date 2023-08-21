@@ -5,7 +5,7 @@ fn sigmoid(val: f64) f64 {
 }
 
 fn sigmoid_prime(val: f64) f64 {
-    return sigmoid(val) / (1 - sigmoid(val));
+    return sigmoid(val) * (1 - sigmoid(val));
 }
 
 fn apply(comptime operation: fn (f64) f64, arr: []f64, out: []f64) void {
