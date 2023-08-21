@@ -65,6 +65,11 @@ fn free_matrices(allocator: std.mem.Allocator, buf: []linalg.Matrix) void {
     allocator.free(buf);
 }
 
+fn free_backprop_result(allocator: std.mem.Allocator, backprop_result: BackpropResult) void {
+    free_matrices(allocator, backprop_result.delta_nabla_biases);
+    free_matrices(allocator, backprop_result.delta_nabla_weights);
+}
+
 pub const DataPoint = struct {
     /// input (image pixels)
     x: []f64,
@@ -195,10 +200,8 @@ pub const Network = struct {
 
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
-            defer {
-                free_matrices(allocator, backprop_result.delta_nabla_biases);
-                free_matrices(allocator, backprop_result.delta_nabla_weights);
-            }
+            defer free_backprop_result(allocator, backprop_result);
+
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
                 try delta_w.add(nabla_w[i], &nabla_w[i]);
