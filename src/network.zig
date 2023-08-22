@@ -128,6 +128,10 @@ pub const Network = struct {
     }
 
     fn backprop(self: Network, allocator: std.mem.Allocator, point: DataPoint) !BackpropResult {
+        var stopwatch = perf.Stopwatch{
+            .last_ts = 0,
+        };
+        stopwatch.start();
         var delta_nabla_w = try self.alloc_nabla_w(allocator);
         var delta_nabla_b = try self.alloc_nabla_b(allocator);
 
@@ -142,7 +146,11 @@ pub const Network = struct {
             .cols = 1,
         };
 
+        stopwatch.report("alloc");
+
         var fed_forward = try self.feedforward(allocator, x_matrix);
+        stopwatch.report("ff");
+
         defer free_feedforward(allocator, fed_forward);
 
         var activations = fed_forward.activations;
@@ -159,6 +167,7 @@ pub const Network = struct {
         try activation_ptr.sub(y_matrix, delta_ptr);
 
         // cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
+        stopwatch.start();
         var z_last = fed_forward.z_results[fed_forward.z_results.len - 1];
         maths.apply_sigmoid_prime_in_place(z_last.data);
         linalg.hadamard_product(delta_ptr.data, z_last.data, delta_ptr.data);
@@ -167,6 +176,8 @@ pub const Network = struct {
         var prev_activation = &activations[activations.len - 2];
         var nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - 1];
         try delta_to_w(allocator, delta_ptr, prev_activation, nabla_w_ptr);
+
+        stopwatch.report("first pass");
 
         var i: usize = 2;
         while (i < self.layer_sizes.len) {
@@ -196,27 +207,20 @@ pub const Network = struct {
 
             i += 1;
         }
+        stopwatch.report("loop");
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
     }
 
     /// Updates weights and biases with batch of data
     fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f64) !void {
-        var stopwatch = perf.Stopwatch{
-            .last_ts = 0,
-            .elapsed = 0,
-        };
-        stopwatch.start();
         // TODO: use just one big matrix for each batch
         var nabla_w = try self.alloc_nabla_w(allocator);
         defer free_matrices(allocator, nabla_w);
 
         var nabla_b = try self.alloc_nabla_b(allocator);
         defer free_matrices(allocator, nabla_b);
-        stopwatch.stop();
-        stopwatch.report("alloc nabla");
 
-        stopwatch.start();
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
             defer free_backprop_result(allocator, backprop_result);
@@ -230,10 +234,7 @@ pub const Network = struct {
                 try nabla_b[i].add(delta_b, &nabla_b[i]);
             }
         }
-        stopwatch.stop();
-        stopwatch.report("back prop loop");
 
-        stopwatch.start();
         // update weights, biases
         const scalar = eta / @intToFloat(f64, batch.len);
         for (self.weights) |_, i| {
@@ -246,8 +247,6 @@ pub const Network = struct {
             nabla_b[i].scale(scalar);
             try bias.sub(nabla_b[i], &bias);
         }
-        stopwatch.stop();
-        stopwatch.report("update weights, biases");
     }
 
     fn sgd_epoch(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
