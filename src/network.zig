@@ -1,6 +1,7 @@
 const std = @import("std");
 const linalg = @import("linalg.zig");
 const maths = @import("maths.zig");
+const perf = @import("performance.zig");
 
 fn shallow_copy_slice(comptime T: type, source: []const T, dest: []T) void {
     for (source) |elem, i| {
@@ -201,13 +202,21 @@ pub const Network = struct {
 
     /// Updates weights and biases with batch of data
     fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f64) !void {
+        var stopwatch = perf.Stopwatch{
+            .last_ts = 0,
+            .elapsed = 0,
+        };
+        stopwatch.start();
         // TODO: use just one big matrix for each batch
         var nabla_w = try self.alloc_nabla_w(allocator);
         defer free_matrices(allocator, nabla_w);
 
         var nabla_b = try self.alloc_nabla_b(allocator);
         defer free_matrices(allocator, nabla_b);
+        stopwatch.stop();
+        stopwatch.report("alloc nabla");
 
+        stopwatch.start();
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
             defer free_backprop_result(allocator, backprop_result);
@@ -221,7 +230,10 @@ pub const Network = struct {
                 try nabla_b[i].add(delta_b, &nabla_b[i]);
             }
         }
+        stopwatch.stop();
+        stopwatch.report("back prop loop");
 
+        stopwatch.start();
         // update weights, biases
         const scalar = eta / @intToFloat(f64, batch.len);
         for (self.weights) |_, i| {
@@ -234,6 +246,8 @@ pub const Network = struct {
             nabla_b[i].scale(scalar);
             try bias.sub(nabla_b[i], &bias);
         }
+        stopwatch.stop();
+        stopwatch.report("update weights, biases");
     }
 
     fn sgd_epoch(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
@@ -389,7 +403,6 @@ pub fn make_mnist_data_points(allocator: std.mem.Allocator, x: []const u8, x_chu
     var idx: usize = 0;
     // assuming x / x_chunk_size and y.len are the same
     while (i < x.len) {
-        //std.debug.print("i: {}\n", .{i});
         const slice = x[i .. i + x_chunk_size];
         const x_buffer = try allocator.alloc(f64, x_chunk_size);
         copy_image_data(slice, x_buffer);
