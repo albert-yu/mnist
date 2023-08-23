@@ -298,10 +298,6 @@ pub const Network = struct {
 
     /// Need to free result
     pub fn feedforward(self: Network, allocator: std.mem.Allocator, x_matrix: linalg.Matrix) !FeedforwardResult {
-        var stopwatch = perf.Stopwatch{
-            .last_ts = 0,
-        };
-        stopwatch.start();
         // feedforward, and save the activations
         var activations = try allocator.alloc(linalg.Matrix, self.layer_count());
         for (activations) |_, i| {
@@ -312,16 +308,13 @@ pub const Network = struct {
                 try linalg.alloc_matrix_data(allocator, &activations[i], b.num_rows(), b.num_cols());
             }
         }
-        stopwatch.report("allocate activations");
         var z_results = try allocator.alloc(linalg.Matrix, self.layer_count() - 1);
         for (z_results) |_, i| {
             const b = self.biases[i];
             try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
         }
-        stopwatch.report("allocate z");
 
         activations[0].copy_data_unsafe(x_matrix.data);
-        stopwatch.report("copy data to activations 0");
         var activation_ptr: linalg.Matrix = activations[0];
         for (self.weights) |w, i| {
             const b = self.biases[i];
@@ -336,7 +329,6 @@ pub const Network = struct {
             // sigmoid(w * x + b)
             maths.apply_sigmoid(z_results[i].data, next_activation.data);
             activation_ptr = next_activation;
-            stopwatch.report("loop bottom");
         }
 
         // copy to result
