@@ -110,12 +110,12 @@ pub const Network = struct {
     /// distribution
     pub fn init_randn(self: Network) void {
         for (self.biases) |bias| {
-            for (range(self.biases.len)) |_, i| {
+            for (range(bias.data.len)) |_, i| {
                 bias.data[i] = rand.random().floatNorm(f64);
             }
         }
         for (self.weights) |weight| {
-            for (range(self.biases.len)) |_, i| {
+            for (range(weight.data.len)) |_, i| {
                 weight.data[i] = rand.random().floatNorm(f64);
             }
         }
@@ -166,10 +166,10 @@ pub const Network = struct {
             .cols = 1,
         };
 
-        stopwatch.report("alloc");
+        // stopwatch.report("alloc");
 
         var fed_forward = try self.feedforward(allocator, x_matrix);
-        stopwatch.report("ff");
+        // stopwatch.report("ff");
 
         defer free_feedforward(allocator, fed_forward);
 
@@ -187,7 +187,7 @@ pub const Network = struct {
         try activation_ptr.sub(y_matrix, delta_ptr);
 
         // cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
-        stopwatch.start();
+        // stopwatch.start();
         var z_last = fed_forward.z_results[fed_forward.z_results.len - 1];
         maths.apply_sigmoid_prime_in_place(z_last.data);
         linalg.hadamard_product(delta_ptr.data, z_last.data, delta_ptr.data);
@@ -197,7 +197,7 @@ pub const Network = struct {
         var nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - 1];
         try delta_to_w(allocator, delta_ptr, prev_activation, nabla_w_ptr);
 
-        stopwatch.report("first pass");
+        // stopwatch.report("first pass");
 
         var i: usize = 2;
         while (i < self.layer_sizes.len) {
@@ -227,7 +227,7 @@ pub const Network = struct {
 
             i += 1;
         }
-        stopwatch.report("loop");
+        // stopwatch.report("loop");
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
     }
@@ -281,7 +281,7 @@ pub const Network = struct {
         }
     }
 
-    fn print_biases(self: Network, layer: usize) void {
+    pub fn print_biases(self: Network, layer: usize) void {
         std.debug.print("biases at {}\n", .{layer});
         self.biases[layer].print();
     }
