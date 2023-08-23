@@ -98,6 +98,10 @@ pub const Network = struct {
     /// @internal
     z_results: []linalg.Matrix,
 
+    /// @internal mutated
+    delta_nabla_w: []linalg.Matrix,
+    delta_nabla_b: []linalg.Matrix,
+
     pub fn layer_count(self: Network) usize {
         return self.layer_sizes.len;
     }
@@ -154,8 +158,8 @@ pub const Network = struct {
     }
 
     fn backprop(self: Network, allocator: std.mem.Allocator, point: DataPoint) !BackpropResult {
-        var delta_nabla_w = try self.alloc_nabla_w(allocator);
-        var delta_nabla_b = try self.alloc_nabla_b(allocator);
+        var delta_nabla_w = self.delta_nabla_w;
+        var delta_nabla_b = self.delta_nabla_b;
 
         var x_matrix = linalg.Matrix{
             .data = point.x,
@@ -236,7 +240,6 @@ pub const Network = struct {
 
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
-            defer free_backprop_result(allocator, backprop_result);
 
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
@@ -499,10 +502,18 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
     network.activations = activations;
     network.z_results = z_results;
 
+    // allocate intermediate backprop results
+    var delta_nabla_w = try network.alloc_nabla_w(allocator);
+    var delta_nabla_b = try network.alloc_nabla_b(allocator);
+    network.delta_nabla_b = delta_nabla_b;
+    network.delta_nabla_w = delta_nabla_w;
+
     return network;
 }
 
 pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
+    free_matrices(allocator, network.delta_nabla_b);
+    free_matrices(allocator, network.delta_nabla_w);
     for (network.activations) |activation| {
         linalg.free_matrix_data(allocator, activation);
     }
@@ -587,7 +598,6 @@ test "backpropagation test" {
     defer free_network(allocator, network);
     network.init_zeros();
     const result = try network.backprop(allocator, data_point);
-    defer free_backprop_result(allocator, result);
 
     var expected_delta_b = [_]f64{ 0.125, 0.125, 0.125, 0.125, 0.125, -0.125, 0.125, 0.125, 0.125, 0.125 };
     try std.testing.expectEqualSlices(f64, &expected_delta_b, result.delta_nabla_biases[1].data);

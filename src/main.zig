@@ -81,7 +81,7 @@ pub fn main() !void {
     network.init_randn();
     std.debug.print("training...\n", .{});
     network.print_biases(1);
-    try network.sgd(allocator, train_data_points, 0.05, 1);
+    try network.sgd(allocator, train_data_points, 0.05, 10);
     network.print_biases(1);
     std.debug.print("done.\n", .{});
 
