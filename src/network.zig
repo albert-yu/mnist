@@ -92,6 +92,12 @@ pub const Network = struct {
     // column vectors
     biases: []linalg.Matrix,
 
+    /// @internal
+    activations: []linalg.Matrix,
+
+    /// @internal
+    z_results: []linalg.Matrix,
+
     pub fn layer_count(self: Network) usize {
         return self.layer_sizes.len;
     }
@@ -162,12 +168,11 @@ pub const Network = struct {
             .cols = 1,
         };
 
-        var fed_forward = try self.feedforward(allocator, x_matrix);
+        // var fed_forward = try self.feedforward(allocator, x_matrix);
+        try self.feedforward_mut(x_matrix);
 
-        defer free_feedforward(allocator, fed_forward);
-
-        var activations = fed_forward.activations;
-        var z_results = fed_forward.z_results;
+        var activations = self.activations;
+        var z_results = self.z_results;
 
         // backward pass
 
@@ -176,11 +181,11 @@ pub const Network = struct {
         var delta_ptr: *linalg.Matrix = &delta_nabla_b[delta_nabla_b.len - 1];
 
         // cost_derivative(activations[-1], y)
-        var activation_ptr = activations[fed_forward.activations.len - 1];
+        var activation_ptr = activations[self.activations.len - 1];
         try activation_ptr.sub(y_matrix, delta_ptr);
 
         // cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
-        var z_last = fed_forward.z_results[fed_forward.z_results.len - 1];
+        var z_last = self.z_results[self.z_results.len - 1];
         maths.apply_sigmoid_prime_in_place(z_last.data);
         linalg.hadamard_product(delta_ptr.data, z_last.data, delta_ptr.data);
 
@@ -296,6 +301,26 @@ pub const Network = struct {
         }
     }
 
+    fn feedforward_mut(self: Network, x_matrix: linalg.Matrix) !void {
+        self.activations[0].copy_data_unsafe(x_matrix.data);
+        var activation_ptr: linalg.Matrix = self.activations[0];
+        for (self.weights) |w, i| {
+            const b = self.biases[i];
+            var next_activation = self.activations[i + 1];
+
+            // dimension of activation = dimension of b
+
+            // w * x
+            try w.multiply(activation_ptr, &self.z_results[i]);
+            // w * x + b = z
+            try self.z_results[i].add(b, &self.z_results[i]);
+            // sigmoid(w * x + b)
+            maths.apply_sigmoid(self.z_results[i].data, next_activation.data);
+            activation_ptr = next_activation;
+        }
+    }
+
+    /// Used for testing.
     /// Need to free result
     pub fn feedforward(self: Network, allocator: std.mem.Allocator, x_matrix: linalg.Matrix) !FeedforwardResult {
         // feedforward, and save the activations
@@ -462,10 +487,31 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
         try linalg.alloc_matrix_data(allocator, &network.biases[i - 1], layer_size, 1);
     }
 
+    // allocate activations
+    var activations = try allocator.alloc(linalg.Matrix, network.layer_count());
+    for (activations) |_, i| {
+        try linalg.alloc_matrix_data(allocator, &activations[i], layer_sizes[i], 1);
+    }
+    var z_results = try allocator.alloc(linalg.Matrix, network.layer_count() - 1);
+    for (z_results) |_, i| {
+        const b = network.biases[i];
+        try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
+    }
+    network.activations = activations;
+    network.z_results = z_results;
+
     return network;
 }
 
 pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
+    for (network.activations) |activation| {
+        linalg.free_matrix_data(allocator, activation);
+    }
+    allocator.free(network.activations);
+    for (network.z_results) |z| {
+        linalg.free_matrix_data(allocator, z);
+    }
+    allocator.free(network.z_results);
     for (network.weights) |weight_matrix| {
         linalg.free_matrix_data(allocator, weight_matrix);
     }
