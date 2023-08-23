@@ -168,7 +168,6 @@ pub const Network = struct {
             .cols = 1,
         };
 
-        // var fed_forward = try self.feedforward(allocator, x_matrix);
         try self.feedforward_mut(x_matrix);
 
         var activations = self.activations;
