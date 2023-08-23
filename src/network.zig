@@ -3,6 +3,11 @@ const linalg = @import("linalg.zig");
 const maths = @import("maths.zig");
 const perf = @import("performance.zig");
 
+/// https://stackoverflow.com/a/73020142
+fn range(len: usize) []const void {
+    return @as([*]void, undefined)[0..len];
+}
+
 fn shallow_copy_slice(comptime T: type, source: []const T, dest: []T) void {
     for (source) |elem, i| {
         dest[i] = elem;
@@ -17,9 +22,9 @@ fn alloc_copy(comptime T: type, allocator: std.mem.Allocator, source: []const T)
 }
 
 const randgen = std.rand.DefaultPrng;
+var rand = randgen.init(0);
 
 fn shuffle(comptime T: type, arr: []T) void {
-    var rand = randgen.init(0);
     for (arr) |elem, i| {
         const random_offset = rand.random().int(usize);
         const new_i = (i + random_offset) % arr.len;
@@ -98,6 +103,21 @@ pub const Network = struct {
         }
         for (self.weights) |weight| {
             weight.set_all(0);
+        }
+    }
+
+    /// Initialize random weights with standard normal
+    /// distribution
+    pub fn init_randn(self: Network) void {
+        for (self.biases) |bias| {
+            for (range(self.biases.len)) |_, i| {
+                bias.data[i] = rand.random().floatNorm(f64);
+            }
+        }
+        for (self.weights) |weight| {
+            for (range(self.biases.len)) |_, i| {
+                weight.data[i] = rand.random().floatNorm(f64);
+            }
         }
     }
 

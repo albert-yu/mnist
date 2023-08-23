@@ -2,11 +2,6 @@ const std = @import("std");
 const lin = @import("linalg.zig");
 const nn = @import("network.zig");
 
-/// https://stackoverflow.com/a/73020142
-fn range(len: usize) []const void {
-    return @as([*]void, undefined)[0..len];
-}
-
 fn get_double_word(bytes: []u8, offset: usize) u32 {
     const slice = bytes[offset .. offset + 4][0..4];
     return std.mem.readInt(u32, slice, std.builtin.Endian.Big);
@@ -83,6 +78,7 @@ pub fn main() !void {
     const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
     var network = try nn.alloc_network(allocator, &layer_sizes);
     defer nn.free_network(allocator, network);
+    network.init_randn();
     std.debug.print("training...\n", .{});
     try network.sgd(allocator, train_data_points, 0.05, 10);
     std.debug.print("done.\n", .{});
