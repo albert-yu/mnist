@@ -49,13 +49,7 @@ fn free_feedforward(allocator: std.mem.Allocator, result: FeedforwardResult) voi
     allocator.free(result.z_results);
 }
 
-fn delta_to_w(allocator: std.mem.Allocator, delta_ptr: *linalg.Matrix, prev_activation: *linalg.Matrix, nabla_w_ptr: *linalg.Matrix) !void {
-    // activations[-l].transpose()
-    var prev_activation_transposed = try linalg.alloc_matrix(allocator, prev_activation.cols, prev_activation.rows);
-    defer linalg.free_matrix(allocator, prev_activation_transposed);
-    linalg.transpose(prev_activation.*, prev_activation_transposed);
-
-    // delta (dot) activations[-2].transpose()
+fn delta_to_w(delta_ptr: *linalg.Matrix, prev_activation_transposed: *linalg.Matrix, nabla_w_ptr: *linalg.Matrix) !void {
     try delta_ptr.multiply(prev_activation_transposed.*, nabla_w_ptr);
 }
 
@@ -88,12 +82,16 @@ pub const Network = struct {
 
     // should be same length as biases
     weights: []linalg.Matrix,
+    /// @internal weights transposed
+    weights_t: []linalg.Matrix,
 
     // column vectors
     biases: []linalg.Matrix,
 
     /// @internal
     activations: []linalg.Matrix,
+    /// @internal activations transpoed
+    activations_t: []linalg.Matrix,
 
     /// @internal
     z_results: []linalg.Matrix,
@@ -171,8 +169,13 @@ pub const Network = struct {
             .rows = point.y.len,
             .cols = 1,
         };
+        var stopwatch = perf.Stopwatch{
+            .last_ts = 0,
+        };
+        stopwatch.start();
 
         try self.feedforward_mut(x_matrix);
+        stopwatch.report("ff");
 
         var activations = self.activations;
         var z_results = self.z_results;
@@ -193,10 +196,13 @@ pub const Network = struct {
         linalg.hadamard_product(delta_ptr.data, z_last.data, delta_ptr.data);
 
         // activations[-2].transpose()
-        var prev_activation = &activations[activations.len - 2];
+        var prev_activation = activations[activations.len - 2];
         var nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - 1];
-        try delta_to_w(allocator, delta_ptr, prev_activation, nabla_w_ptr);
+        var prev_activation_transposed = self.activations_t[activations.len - 2];
+        linalg.transpose(prev_activation, &prev_activation_transposed);
+        try delta_to_w(delta_ptr, &prev_activation_transposed, nabla_w_ptr);
 
+        stopwatch.report("delta");
         var i: usize = 2;
         while (i < self.layer_sizes.len) {
             const z = z_results[z_results.len - i];
@@ -204,26 +210,35 @@ pub const Network = struct {
             defer linalg.free_matrix(allocator, z_copy);
             maths.apply_sigmoid_prime(z.data, z_copy.data);
             var w = self.weights[self.weights.len - i + 1];
+            stopwatch.report("z copy");
 
             // w'
-            var w_transposed = try linalg.alloc_matrix(allocator, w.cols, w.rows);
-            defer linalg.free_matrix(allocator, w_transposed);
-            linalg.transpose(w, w_transposed);
+            // var w_transposed = try linalg.alloc_matrix(allocator, w.cols, w.rows);
+            var w_transposed = self.weights_t[self.weights_t.len - i + 1];
+            // defer linalg.free_matrix(allocator, w_transposed);
+            linalg.transpose(w, &w_transposed);
+            stopwatch.report("w transpose");
 
             // w' (dot) delta
             var new_delta = try linalg.alloc_matrix(allocator, w_transposed.num_rows(), delta_ptr.num_cols());
             defer linalg.free_matrix(allocator, new_delta);
 
             try w_transposed.multiply(delta_ptr.*, new_delta);
+            stopwatch.report("w transpose delta");
 
             // copy result back to delta_ptr
             delta_ptr = &delta_nabla_b[delta_nabla_b.len - i];
             new_delta.copy_data_unsafe(delta_ptr.data);
+            stopwatch.report("copy delta");
 
             nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - i];
-            try delta_to_w(allocator, delta_ptr, &activations[activations.len - i - 1], nabla_w_ptr);
+            var prev_activation_t = &self.activations_t[activations.len - i - 1];
+            linalg.transpose(activations[activations.len - i - 1], prev_activation_t);
+            try delta_to_w(delta_ptr, prev_activation_t, nabla_w_ptr);
+            stopwatch.report("copy w");
 
             i += 1;
+            stopwatch.report("loop bottom");
         }
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
@@ -232,14 +247,20 @@ pub const Network = struct {
     /// Updates weights and biases with batch of data
     fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f64) !void {
         // TODO: use just one big matrix for each batch
+        var stopwatch = perf.Stopwatch{
+            .last_ts = 0,
+        };
+        stopwatch.start();
         var nabla_w = try self.alloc_nabla_w(allocator);
         defer free_matrices(allocator, nabla_w);
 
         var nabla_b = try self.alloc_nabla_b(allocator);
         defer free_matrices(allocator, nabla_b);
+        stopwatch.report("allocations");
 
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
+            stopwatch.report("backprop");
 
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
@@ -263,6 +284,7 @@ pub const Network = struct {
             nabla_b[i].scale(scalar);
             try bias.sub(nabla_b[i], &bias);
         }
+        stopwatch.report("biases");
     }
 
     fn sgd_epoch(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
@@ -476,6 +498,7 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
     var biases_weights_len = layer_sizes.len - 1;
     network.biases = try allocator.alloc(linalg.Matrix, biases_weights_len);
     network.weights = try allocator.alloc(linalg.Matrix, biases_weights_len);
+    network.weights_t = try allocator.alloc(linalg.Matrix, biases_weights_len);
 
     // allocate weights and biases matrices
     for (layer_sizes) |layer_size, i| {
@@ -486,20 +509,24 @@ pub fn alloc_network(allocator: std.mem.Allocator, layer_sizes: []const usize) e
         }
         const prev_layer_size: usize = layer_sizes[i - 1];
         try linalg.alloc_matrix_data(allocator, &network.weights[i - 1], layer_size, prev_layer_size);
+        try linalg.alloc_matrix_data(allocator, &network.weights_t[i - 1], prev_layer_size, layer_size);
         try linalg.alloc_matrix_data(allocator, &network.biases[i - 1], layer_size, 1);
     }
 
     // allocate activations
     var activations = try allocator.alloc(linalg.Matrix, network.layer_count());
+    var activations_t = try allocator.alloc(linalg.Matrix, network.layer_count());
     for (activations) |_, i| {
         try linalg.alloc_matrix_data(allocator, &activations[i], layer_sizes[i], 1);
+        try linalg.alloc_matrix_data(allocator, &activations_t[i], 1, layer_sizes[i]);
     }
+    network.activations = activations;
+    network.activations_t = activations_t;
     var z_results = try allocator.alloc(linalg.Matrix, network.layer_count() - 1);
     for (z_results) |_, i| {
         const b = network.biases[i];
         try linalg.alloc_matrix_data(allocator, &z_results[i], b.num_rows(), b.num_cols());
     }
-    network.activations = activations;
     network.z_results = z_results;
 
     // allocate intermediate backprop results
@@ -518,6 +545,10 @@ pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
         linalg.free_matrix_data(allocator, activation);
     }
     allocator.free(network.activations);
+    for (network.activations_t) |activation_t| {
+        linalg.free_matrix_data(allocator, activation_t);
+    }
+    allocator.free(network.activations_t);
     for (network.z_results) |z| {
         linalg.free_matrix_data(allocator, z);
     }
@@ -525,10 +556,14 @@ pub fn free_network(allocator: std.mem.Allocator, network: *Network) void {
     for (network.weights) |weight_matrix| {
         linalg.free_matrix_data(allocator, weight_matrix);
     }
+    allocator.free(network.weights);
+    for (network.weights_t) |w_t| {
+        linalg.free_matrix_data(allocator, w_t);
+    }
+    allocator.free(network.weights_t);
     for (network.biases) |bias_matrix| {
         linalg.free_matrix_data(allocator, bias_matrix);
     }
-    allocator.free(network.weights);
     allocator.free(network.biases);
     allocator.free(network.layer_sizes);
     allocator.destroy(network);
