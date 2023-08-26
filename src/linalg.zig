@@ -160,13 +160,7 @@ pub const Matrix = struct {
         }
     }
 
-    /// Multiples two matrices, stores result in `out`.
-    /// Assumes `out` is properly allocated, but will set
-    /// the correct rows and cols.
-    pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.num_cols() != right.num_rows()) {
-            return error.MatrixDimensionError;
-        }
+    pub fn multiply_unsafe(self: Matrix, right: Matrix, out: *Matrix) void {
         out.rows = self.num_rows();
         out.cols = right.num_cols();
         var i: usize = 0;
@@ -181,6 +175,16 @@ pub const Matrix = struct {
                 out.set(i, j, acc);
             }
         }
+    }
+
+    /// Multiples two matrices, stores result in `out`.
+    /// Assumes `out` is properly allocated, but will set
+    /// the correct rows and cols.
+    pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
+        if (self.num_cols() != right.num_rows()) {
+            return error.MatrixDimensionError;
+        }
+        self.multiply_unsafe(right, out);
     }
 
     /// Maps 2D indices to 1D underlying offset
