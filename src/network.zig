@@ -49,10 +49,6 @@ fn free_feedforward(allocator: std.mem.Allocator, result: FeedforwardResult) voi
     allocator.free(result.z_results);
 }
 
-fn delta_to_w(delta_ptr: *linalg.Matrix, prev_activation_transposed: *linalg.Matrix, nabla_w_ptr: *linalg.Matrix) void {
-    delta_ptr.multiply_unsafe(prev_activation_transposed.*, nabla_w_ptr);
-}
-
 const BackpropResult = struct {
     delta_nabla_weights: []linalg.Matrix,
     delta_nabla_biases: []linalg.Matrix,
@@ -198,9 +194,9 @@ pub const Network = struct {
         // activations[-2].transpose()
         var prev_activation = activations[activations.len - 2];
         var nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - 1];
-        var prev_activation_transposed = self.activations_t[activations.len - 2];
-        linalg.transpose(prev_activation, &prev_activation_transposed);
-        delta_to_w(delta_ptr, &prev_activation_transposed, nabla_w_ptr);
+        var prev_activation_t = self.activations_t[activations.len - 2];
+        linalg.transpose(prev_activation, &prev_activation_t);
+        delta_ptr.multiply_unsafe(prev_activation_t, nabla_w_ptr);
 
         stopwatch.report("delta");
         var i: usize = 2;
@@ -232,10 +228,11 @@ pub const Network = struct {
             stopwatch.report("copy delta");
 
             nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - i];
-            var prev_activation_t = &self.activations_t[activations.len - i - 1];
-            linalg.transpose(activations[activations.len - i - 1], prev_activation_t);
-            delta_to_w(delta_ptr, prev_activation_t, nabla_w_ptr);
-            stopwatch.report("copy w");
+            prev_activation_t = self.activations_t[activations.len - i - 1];
+            linalg.transpose(activations[activations.len - i - 1], &prev_activation_t);
+            stopwatch.report("t");
+            delta_ptr.multiply_unsafe(prev_activation_t, nabla_w_ptr);
+            stopwatch.report("nabla_w = d * a_t");
 
             i += 1;
             stopwatch.report("loop bottom");
