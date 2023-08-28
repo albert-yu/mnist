@@ -165,13 +165,8 @@ pub const Network = struct {
             .rows = point.y.len,
             .cols = 1,
         };
-        var stopwatch = perf.Stopwatch{
-            .last_ts = 0,
-        };
-        stopwatch.start();
 
         try self.feedforward_mut(x_matrix);
-        stopwatch.report("ff");
 
         var activations = self.activations;
         var z_results = self.z_results;
@@ -198,7 +193,6 @@ pub const Network = struct {
         linalg.transpose(prev_activation, &prev_activation_t);
         delta_ptr.multiply_unsafe(prev_activation_t, nabla_w_ptr);
 
-        stopwatch.report("delta");
         var i: usize = 2;
         while (i < self.layer_sizes.len) {
             const z = z_results[z_results.len - i];
@@ -206,36 +200,29 @@ pub const Network = struct {
             defer linalg.free_matrix(allocator, z_copy);
             maths.apply_sigmoid_prime(z.data, z_copy.data);
             var w = self.weights[self.weights.len - i + 1];
-            stopwatch.report("z copy");
 
             // w'
             // var w_transposed = try linalg.alloc_matrix(allocator, w.cols, w.rows);
             var w_transposed = self.weights_t[self.weights_t.len - i + 1];
             // defer linalg.free_matrix(allocator, w_transposed);
             linalg.transpose(w, &w_transposed);
-            stopwatch.report("w transpose");
 
             // w' (dot) delta
             var new_delta = try linalg.alloc_matrix(allocator, w_transposed.num_rows(), delta_ptr.num_cols());
             defer linalg.free_matrix(allocator, new_delta);
 
             try w_transposed.multiply(delta_ptr.*, new_delta);
-            stopwatch.report("w transpose delta");
 
             // copy result back to delta_ptr
             delta_ptr = &delta_nabla_b[delta_nabla_b.len - i];
             new_delta.copy_data_unsafe(delta_ptr.data);
-            stopwatch.report("copy delta");
 
             nabla_w_ptr = &delta_nabla_w[delta_nabla_w.len - i];
             prev_activation_t = self.activations_t[activations.len - i - 1];
             linalg.transpose(activations[activations.len - i - 1], &prev_activation_t);
-            stopwatch.report("t");
             delta_ptr.multiply_unsafe(prev_activation_t, nabla_w_ptr);
-            stopwatch.report("nabla_w = d * a_t");
 
             i += 1;
-            stopwatch.report("loop bottom");
         }
 
         return BackpropResult{ .delta_nabla_weights = delta_nabla_w, .delta_nabla_biases = delta_nabla_b };
@@ -244,20 +231,14 @@ pub const Network = struct {
     /// Updates weights and biases with batch of data
     fn update_with_batch(self: Network, allocator: std.mem.Allocator, batch: []const DataPoint, eta: f64) !void {
         // TODO: use just one big matrix for each batch
-        var stopwatch = perf.Stopwatch{
-            .last_ts = 0,
-        };
-        stopwatch.start();
         var nabla_w = try self.alloc_nabla_w(allocator);
         defer free_matrices(allocator, nabla_w);
 
         var nabla_b = try self.alloc_nabla_b(allocator);
         defer free_matrices(allocator, nabla_b);
-        stopwatch.report("allocations");
 
         for (batch) |point| {
             const backprop_result = try self.backprop(allocator, point);
-            stopwatch.report("backprop");
 
             // overwrite nabla_w, and nabla_b with deltas
             for (backprop_result.delta_nabla_weights) |delta_w, i| {
@@ -281,7 +262,6 @@ pub const Network = struct {
             nabla_b[i].scale(scalar);
             try bias.sub(nabla_b[i], &bias);
         }
-        stopwatch.report("biases");
     }
 
     fn sgd_epoch(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64) !void {
@@ -313,10 +293,15 @@ pub const Network = struct {
 
     pub fn sgd(self: Network, allocator: std.mem.Allocator, train_data: []DataPoint, eta: f64, epochs: usize) !void {
         var epoch: usize = 0;
+        var stopwatch = perf.Stopwatch{
+            .last_ts = 0,
+        };
         while (epoch < epochs) {
             shuffle(DataPoint, train_data);
+            stopwatch.start();
             std.debug.print("started epoch {} of {}\n", .{ epoch + 1, epochs });
             try self.sgd_epoch(allocator, train_data, eta);
+            stopwatch.report("epoch finished");
             std.debug.print("finished epoch {} of {}\n", .{ epoch + 1, epochs });
             epoch += 1;
         }
