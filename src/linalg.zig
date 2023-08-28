@@ -66,15 +66,15 @@ pub const Matrix = struct {
     cols: usize,
 
     /// Number of elements in this matrix
-    pub fn size(self: Matrix) usize {
+    pub inline fn size(self: Matrix) usize {
         return self.data.len;
     }
 
-    pub fn num_rows(self: Matrix) usize {
+    pub inline fn num_rows(self: Matrix) usize {
         return self.rows;
     }
 
-    pub fn num_cols(self: Matrix) usize {
+    pub inline fn num_cols(self: Matrix) usize {
         return self.cols;
     }
 
@@ -188,7 +188,7 @@ pub const Matrix = struct {
     }
 
     /// Maps 2D indices to 1D underlying offset
-    fn get_offset(self: Matrix, i: usize, j: usize) usize {
+    inline fn get_offset(self: Matrix, i: usize, j: usize) usize {
         return i * self.cols + j;
     }
 
@@ -197,7 +197,7 @@ pub const Matrix = struct {
     /// Parameters:
     ///   i - 0-based row index
     ///   j - 0-based column index
-    pub fn at(self: Matrix, i: usize, j: usize) f64 {
+    pub inline fn at(self: Matrix, i: usize, j: usize) f64 {
         var index = self.get_offset(i, j);
         return self.data[index];
     }
