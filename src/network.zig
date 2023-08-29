@@ -469,7 +469,9 @@ fn write_digit(digit: u8, buf: []f64) void {
 /// Assumed to be the same length
 fn copy_image_data(input: []const u8, output: []f64) void {
     for (input) |pixel, i| {
-        output[i] = @intToFloat(f64, pixel);
+        const x_val = @intToFloat(f64, pixel);
+        // normalize
+        output[i] = x_val / 255;
     }
 }
 
