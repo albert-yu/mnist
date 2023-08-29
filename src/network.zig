@@ -73,6 +73,43 @@ pub const DataPoint = struct {
     y: []f64,
 };
 
+/// DataPoint struct of arrays
+pub const DataPointSOA = struct {
+    x: []f64,
+    x_chunk_size: usize,
+    y: []f64,
+    y_chunk_size: usize,
+};
+
+pub fn free_mnist_data_points_soa(allocator: std.mem.Allocator, soa: DataPointSOA) void {
+    allocator.free(soa.x);
+    allocator.free(soa.y);
+    allocator.destroy(soa);
+}
+
+/// Need to call `free_mnist_data_points_soa`
+pub fn make_mnist_data_points_soa(allocator: std.mem.Allocator, x: []const u8, x_chunk_size: usize, y: []const u8, y_output_size: usize) !DataPointSOA {
+    const result = try allocator.create(DataPointSOA);
+    result.x = try allocator.alloc(f64, x.len);
+    result.x_chunk_size = x_chunk_size;
+    result.y_chunk_size = y_output_size;
+    result.y = try allocator.alloc(f64, y.len);
+    var i: usize = 0;
+    var idx: usize = 0;
+    while (i < x.len) {
+        const x_chunk = x[i .. i + x_chunk_size];
+        const x_buffer = result.x[i .. i + x_chunk_size];
+        copy_image_data(x_chunk, x_buffer);
+        const y_index = idx * result.y_chunk_size;
+        const y_buffer = result.y[y_index .. y_index + result.y_chunk_size];
+        write_digit(y[idx], y_buffer);
+
+        idx += 1;
+        i += x_chunk_size;
+    }
+    return result;
+}
+
 pub const Network = struct {
     layer_sizes: []usize,
 
