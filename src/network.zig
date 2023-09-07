@@ -217,6 +217,8 @@ pub const Network = struct {
         // cost_derivative(activations[-1], y)
         var activation_ptr = activations[self.activations.len - 1];
         try activation_ptr.sub(y_matrix, delta_ptr);
+        const err = linalg.l2norm(delta_ptr.data);
+        std.debug.print("err: {}\n", .{err});
 
         // cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
         var z_last = self.z_results[self.z_results.len - 1];

@@ -38,6 +38,14 @@ pub fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
     }
 }
 
+pub fn l2norm(vec: []f64) f64 {
+    var result: f64 = 0;
+    for (vec) |el| {
+        result += el * el;
+    }
+    return result;
+}
+
 /// Sets the resulting transposed matrix
 /// to `out`.
 ///
