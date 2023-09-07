@@ -249,6 +249,7 @@ pub const Network = struct {
             defer linalg.free_matrix(allocator, new_delta);
 
             try w_transposed.multiply(delta_ptr.*, new_delta);
+            linalg.hadamard_product(new_delta.data, z_copy.data, new_delta.data);
 
             // copy result back to delta_ptr
             delta_ptr = &delta_nabla_b[delta_nabla_b.len - i];
