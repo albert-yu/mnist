@@ -190,7 +190,13 @@ pub const Network = struct {
 
     fn backprop(self: Network, allocator: std.mem.Allocator, point: DataPoint) !BackpropResult {
         var delta_nabla_w = self.delta_nabla_w;
+        for (delta_nabla_w) |w| {
+            w.zeroes();
+        }
         var delta_nabla_b = self.delta_nabla_b;
+        for (delta_nabla_b) |b| {
+            b.zeroes();
+        }
 
         var x_matrix = linalg.Matrix{
             .data = point.x,
