@@ -52,6 +52,18 @@
             "problemMatcher": [
                 "$zig"
             ]
-        }
+        },
+        {
+            "label": "build layer test",
+            "command": "zig",
+            "args": [
+                "test",
+                "-femit-bin=zig-out/bin/layer-test",
+                "src/layer.zig"
+            ],
+            "problemMatcher": [
+                "$zig"
+            ]
+        },
     ]
 }

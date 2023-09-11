@@ -46,8 +46,8 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
             var last_z_data = try allocator.alloc(f64, OUT);
             return Self{ .last_input = undefined, .weights = linalg.Matrix{
                 .data = w_buffer,
-                .rows = IN,
-                .cols = OUT,
+                .rows = OUT,
+                .cols = IN,
             }, .biases = linalg.Matrix{
                 .data = b_buffer,
                 .rows = OUT,
@@ -71,7 +71,7 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         pub fn backward(self: Self, allocator: std.mem.Allocator, err: linalg.Matrix, comptime activation_prime: fn (f64) f64) !Gradients(IN, OUT) {
             var gradient_results = try Gradients(IN, OUT).alloc(allocator);
             var z_changes = try self.last_z.make_copy(allocator);
-            defer z_changes.destroy(allocator);
+            defer linalg.free_matrix(allocator, z_changes);
             z_changes.for_each(activation_prime);
             z_changes.hadamard(err, &gradient_results.biases);
 
@@ -199,14 +199,7 @@ test "backpropagation test" {
     var grad1 = try output_layer.backward(allocator, err, maths.sigmoid_prime);
     defer grad1.dealloc(allocator);
 
-    // const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
-    // var network = try alloc_network(allocator, &layer_sizes);
-    // defer free_network(allocator, network);
-    // network.init_zeros();
-    // const result = try network.backprop(allocator, data_point);
-
     var expected_delta_b = [_]f64{ 0.125, 0.125, 0.125, 0.125, 0.125, -0.125, 0.125, 0.125, 0.125, 0.125 };
-    // try std.testing.expectEqualSlices(f64, &expected_delta_b, result.delta_nabla_biases[1].data);
     try std.testing.expectEqualSlices(f64, &expected_delta_b, grad1.biases.data);
 
     // expected weights for reference
