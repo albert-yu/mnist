@@ -150,7 +150,7 @@ pub fn main() !void {
                 var grad2 = try layer2.backward(allocator, err, maths.sigmoid_prime);
                 defer grad2.dealloc(allocator);
 
-                var err_inner = try layer1.weights.t_alloc(allocator);
+                var err_inner = try layer2.weights.t_alloc(allocator);
                 defer err_inner.dealloc_data(allocator);
 
                 try err_inner.multiply(grad2.biases, &err_inner);
