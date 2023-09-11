@@ -195,6 +195,23 @@ pub const Matrix = struct {
         self.multiply_unsafe(right, out);
     }
 
+    pub fn dealloc_data(self: Matrix, allocator: std.mem.Allocator) void {
+        free_matrix_data(allocator, self);
+    }
+
+    pub fn mult_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
+        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
+        try alloc_matrix_data(allocator, &result, self.rows, right.cols);
+        try self.multiply(right, &result);
+        return result;
+    }
+
+    pub fn for_each(self: Matrix, comptime op: fn (f64) f64) void {
+        for (self.data) |_, i| {
+            self.data[i] = op(self.data[i]);
+        }
+    }
+
     /// Maps 2D indices to 1D underlying offset
     inline fn get_offset(self: Matrix, i: usize, j: usize) usize {
         return i * self.cols + j;

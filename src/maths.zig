@@ -1,10 +1,10 @@
 const std = @import("std");
 
-fn sigmoid(val: f64) f64 {
+pub fn sigmoid(val: f64) f64 {
     return 1 / (1 + std.math.exp(-val));
 }
 
-fn sigmoid_prime(val: f64) f64 {
+pub fn sigmoid_prime(val: f64) f64 {
     return sigmoid(val) * (1 - sigmoid(val));
 }
 
