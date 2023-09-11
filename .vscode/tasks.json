@@ -41,6 +41,17 @@
             "problemMatcher": [
                 "$zig"
             ]
+        },
+        {
+            "label": "test layer",
+            "command": "zig",
+            "args": [
+                "test",
+                "src/layer.zig"
+            ],
+            "problemMatcher": [
+                "$zig"
+            ]
         }
     ]
 }

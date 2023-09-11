@@ -199,11 +199,34 @@ pub const Matrix = struct {
         free_matrix_data(allocator, self);
     }
 
+    pub fn destroy(self: Matrix, allocator: std.mem.Allocator) void {
+        allocator.destroy(&self);
+    }
+
     pub fn mult_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
         var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
         try alloc_matrix_data(allocator, &result, self.rows, right.cols);
         try self.multiply(right, &result);
         return result;
+    }
+
+    pub fn sub_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
+        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
+        try alloc_matrix_data(allocator, &result, self.rows, right.cols);
+        try self.sub(right, &result);
+        return result;
+    }
+
+    /// Transposes matrix and returns new one, which must be dealloc'd
+    pub fn t_alloc(self: Matrix, allocator: std.mem.Allocator) !Matrix {
+        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
+        try alloc_matrix_data(allocator, &result, self.cols, self.rows);
+        transpose(self, &result);
+        return result;
+    }
+
+    pub fn hadamard(self: Matrix, other: Matrix, out: *Matrix) void {
+        hadamard_product(self.data, other.data, out.data);
     }
 
     pub fn for_each(self: Matrix, comptime op: fn (f64) f64) void {
