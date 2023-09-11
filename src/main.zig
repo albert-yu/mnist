@@ -9,7 +9,7 @@ fn get_double_word(bytes: []u8, offset: usize) u32 {
     return std.mem.readInt(u32, slice, std.builtin.Endian.Big);
 }
 
-fn console_print_image(img_bytes: []u8, num_rows: usize) void {
+fn console_print_image(img_bytes: []f64, num_rows: usize) void {
     // console print
     for (img_bytes) |pixel, i| {
         if (i % num_rows == 0) {
@@ -111,7 +111,7 @@ pub fn main() !void {
 
     var epoch_index: usize = 0;
     while (epoch_index < EPOCHS) : (epoch_index += 1) {
-        // TODO: shuffle
+        // try train_data_points.shuffle(allocator);
         std.debug.print("training...\n", .{});
         var batch_index: usize = 0;
         const scalar = ETA / @intToFloat(f64, BATCH_SIZE);
@@ -120,6 +120,7 @@ pub fn main() !void {
             const end = i + BATCH_SIZE;
             while (i < end) : (i += 1) {
                 var x_data = train_data_points.x_at(i);
+                // console_print_image(x_data, 28);
                 var y_data = train_data_points.y_at(i);
 
                 var x = linalg.Matrix{
