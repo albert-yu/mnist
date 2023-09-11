@@ -1,6 +1,5 @@
 const std = @import("std");
 const lin = @import("linalg.zig");
-const nn = @import("network.zig");
 const layers = @import("layer.zig");
 const mnist = @import("mnist.zig");
 const maths = @import("maths.zig");
@@ -95,8 +94,6 @@ pub fn main() !void {
     std.debug.print("made {} test data points.\n", .{test_data.len()});
 
     const HIDDEN_LAYER_SIZE = 30;
-    std.debug.print("training...\n", .{});
-    // try network.sgd(allocator, train_data_points, 0.05, 25);
     const ETA = 0.05;
     const EPOCHS = 25;
 
@@ -115,6 +112,7 @@ pub fn main() !void {
     var epoch_index: usize = 0;
     while (epoch_index < EPOCHS) : (epoch_index += 1) {
         // TODO: shuffle
+        std.debug.print("training...\n", .{});
         var batch_index: usize = 0;
         const scalar = ETA / @intToFloat(f64, BATCH_SIZE);
         while (batch_index < batch_count) : (batch_index += 1) {
@@ -198,15 +196,4 @@ pub fn main() !void {
     }
 
     std.debug.print("done.\n", .{});
-
-    // std.debug.print("making test data points...", .{});
-    // const test_data = try nn.make_mnist_data_points(allocator, test_images, image_size, test_labels, DIGITS);
-    // defer nn.free_mnist_data_points(allocator, test_data);
-    // std.debug.print("made {} test data points.\n", .{test_data.len});
-
-    // std.debug.print("evaluating...", .{});
-
-    // const num_correct = try network.evaluate(allocator, test_data);
-
-    // std.debug.print("done. {}/{} correct\n", .{ num_correct, test_data.len });
 }
