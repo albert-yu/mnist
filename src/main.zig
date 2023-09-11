@@ -1,6 +1,9 @@
 const std = @import("std");
 const lin = @import("linalg.zig");
 const nn = @import("network.zig");
+const layers = @import("layer.zig");
+const mnist = @import("mnist.zig");
+const maths = @import("maths.zig");
 
 fn get_double_word(bytes: []u8, offset: usize) u32 {
     const slice = bytes[offset .. offset + 4][0..4];
@@ -32,6 +35,21 @@ fn read_file(allocator: std.mem.Allocator, filename: []const u8) ![]u8 {
     return buffer;
 }
 
+fn find_max_index(buf: []f64) usize {
+    var max_i: usize = 0;
+    var max: f64 = buf[0];
+    for (buf) |val, i| {
+        if (i == 0) {
+            continue;
+        }
+        if (val > max) {
+            max_i = i;
+            max = val;
+        }
+    }
+    return max_i;
+}
+
 pub fn main() !void {
     const TRAIN_LABELS_FILE = "data/train-labels.idx1-ubyte";
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -49,8 +67,6 @@ pub fn main() !void {
     defer allocator.free(train_images_buffer);
 
     // can read image count from file, but should be exactly the same as labels
-    const num_rows = get_double_word(train_images_buffer, 8);
-    const num_cols = get_double_word(train_images_buffer, 12);
     const img_start_offset = 16;
     const images = train_images_buffer[img_start_offset..];
 
@@ -66,31 +82,131 @@ pub fn main() !void {
     defer allocator.free(test_labels_buffer);
     const test_labels = test_labels_buffer[start_index..];
 
-    const image_size = num_rows * num_cols;
+    const image_size = 28 * 28;
 
     const DIGITS = 10;
     std.debug.print("making training data points...", .{});
-    const train_data_points = try nn.make_mnist_data_points(allocator, images, image_size, labels, DIGITS);
-    defer nn.free_mnist_data_points(allocator, train_data_points);
-    std.debug.print("made {} train data points.\n", .{train_data_points.len});
-
-    const HIDDEN_LAYER_SIZE = 30;
-    const layer_sizes = [_]usize{ image_size, HIDDEN_LAYER_SIZE, DIGITS };
-    var network = try nn.alloc_network(allocator, &layer_sizes);
-    defer nn.free_network(allocator, network);
-    network.init_randn();
-    std.debug.print("training...\n", .{});
-    try network.sgd(allocator, train_data_points, 0.05, 25);
-    std.debug.print("done.\n", .{});
+    const train_data_points = try mnist.make_mnist_data_points_soa(allocator, images, image_size, labels, DIGITS);
+    defer mnist.free_mnist_data_points_soa(allocator, train_data_points);
+    std.debug.print("made {} train data points.\n", .{train_data_points.len()});
 
     std.debug.print("making test data points...", .{});
-    const test_data = try nn.make_mnist_data_points(allocator, test_images, image_size, test_labels, DIGITS);
-    defer nn.free_mnist_data_points(allocator, test_data);
-    std.debug.print("made {} test data points.\n", .{test_data.len});
+    const test_data = try mnist.make_mnist_data_points_soa(allocator, test_images, image_size, test_labels, DIGITS);
+    std.debug.print("made {} test data points.\n", .{test_data.len()});
 
-    std.debug.print("evaluating...", .{});
+    const HIDDEN_LAYER_SIZE = 30;
+    std.debug.print("training...\n", .{});
+    // try network.sgd(allocator, train_data_points, 0.05, 25);
+    const ETA = 0.05;
+    const EPOCHS = 25;
 
-    const num_correct = try network.evaluate(allocator, test_data);
+    var layer1 = try layers.Layer(image_size, HIDDEN_LAYER_SIZE).alloc(allocator);
+    defer layer1.dealloc(allocator);
+    var layer2 = try layers.Layer(HIDDEN_LAYER_SIZE, DIGITS).alloc(allocator);
+    defer layer2.dealloc(allocator);
 
-    std.debug.print("done. {}/{} correct\n", .{ num_correct, test_data.len });
+    layer1.init_randn();
+    layer2.init_randn();
+
+    const BATCH_SIZE = 10;
+
+    const batch_count = train_data_points.len() / BATCH_SIZE;
+
+    var epoch_index: usize = 0;
+    while (epoch_index < EPOCHS) : (epoch_index += 1) {
+        // TODO: shuffle
+        var batch_index: usize = 0;
+        const scalar = ETA / @intToFloat(f64, BATCH_SIZE);
+        while (batch_index < batch_count) : (batch_index += 1) {
+            var i = batch_index * BATCH_SIZE;
+            const end = i + BATCH_SIZE;
+            while (i < end) : (i += 1) {
+                var x_data = train_data_points.x_at(i);
+                var y_data = train_data_points.y_at(i);
+
+                var x = lin.Matrix{
+                    .data = x_data,
+                    .rows = x_data.len,
+                    .cols = 1,
+                };
+
+                var y = lin.Matrix{
+                    .data = y_data,
+                    .rows = y_data.len,
+                    .cols = 1,
+                };
+
+                // forward
+                var activations1 = try layer1.forward(allocator, x, maths.sigmoid);
+                defer activations1.dealloc_data(allocator);
+
+                var activations2 = try layer2.forward(allocator, activations1, maths.sigmoid);
+                defer activations2.dealloc_data(allocator);
+
+                var err = try activations2.sub_alloc(allocator, y);
+                defer err.dealloc_data(allocator);
+
+                // backward
+                var grad2 = try layer2.backward(allocator, err, maths.sigmoid_prime);
+                defer grad2.dealloc(allocator);
+
+                var err_inner = try layer1.weights.t_alloc(allocator);
+                defer err_inner.dealloc_data(allocator);
+
+                try err_inner.multiply(grad2.biases, &err_inner);
+                var grad1 = try layer1.backward(allocator, err_inner, maths.sigmoid_prime);
+                defer grad1.dealloc(allocator);
+
+                // apply gradients
+                grad1.biases.scale(scalar);
+                try layer1.biases.sub(grad1.biases, &layer1.biases);
+                grad1.weights.scale(scalar);
+                try layer1.weights.sub(grad1.weights, &layer1.weights);
+
+                grad2.biases.scale(scalar);
+                try layer2.biases.sub(grad2.biases, &layer2.biases);
+                grad2.weights.scale(scalar);
+                try layer2.weights.sub(grad2.weights, &layer2.weights);
+            }
+        }
+        std.debug.print("evaluating...", .{});
+
+        var i: usize = 0;
+        var correct: usize = 0;
+        while (i < test_data.len()) : (i += 1) {
+            var x_data = test_data.x_at(i);
+            var x = lin.Matrix{
+                .data = x_data,
+                .rows = image_size,
+                .cols = 1,
+            };
+            var y_data = test_data.y_at(i);
+
+            var activations1 = try layer1.forward(allocator, x, maths.sigmoid);
+            defer activations1.dealloc_data(allocator);
+
+            var activations2 = try layer2.forward(allocator, activations1, maths.sigmoid);
+            defer activations2.dealloc_data(allocator);
+
+            const expected = find_max_index(y_data);
+            const actual = find_max_index(activations2.data);
+            if (expected == actual) {
+                correct += 1;
+            }
+        }
+        std.debug.print("done. {}/{} correct\n", .{ correct, test_data.len() });
+    }
+
+    std.debug.print("done.\n", .{});
+
+    // std.debug.print("making test data points...", .{});
+    // const test_data = try nn.make_mnist_data_points(allocator, test_images, image_size, test_labels, DIGITS);
+    // defer nn.free_mnist_data_points(allocator, test_data);
+    // std.debug.print("made {} test data points.\n", .{test_data.len});
+
+    // std.debug.print("evaluating...", .{});
+
+    // const num_correct = try network.evaluate(allocator, test_data);
+
+    // std.debug.print("done. {}/{} correct\n", .{ num_correct, test_data.len });
 }

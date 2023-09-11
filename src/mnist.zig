@@ -1,10 +1,9 @@
 const std = @import("std");
-const data_point = @import("datapoing.zig");
+const data_point = @import("datapoint.zig");
 
 pub fn free_mnist_data_points_soa(allocator: std.mem.Allocator, soa: data_point.DataPointSOA) void {
     allocator.free(soa.x);
     allocator.free(soa.y);
-    allocator.destroy(soa);
 }
 
 /// Assumed to be the same length
@@ -18,23 +17,24 @@ fn copy_image_data(input: []const u8, output: []f64) void {
 
 /// Need to call `free_mnist_data_points_soa`
 pub fn make_mnist_data_points_soa(allocator: std.mem.Allocator, x: []const u8, x_chunk_size: usize, y: []const u8, y_output_size: usize) !data_point.DataPointSOA {
-    const result = try allocator.create(data_point.DataPointSOA);
-    result.x = try allocator.alloc(f64, x.len);
-    result.x_chunk_size = x_chunk_size;
-    result.y_chunk_size = y_output_size;
-    result.y = try allocator.alloc(f64, y.len);
-    var i: usize = 0;
+    var x_data = try allocator.alloc(f64, x.len);
+    var y_data = try allocator.alloc(f64, y.len * y_output_size);
+    const result = data_point.DataPointSOA{
+        .x = x_data,
+        .x_chunk_size = x_chunk_size,
+        .y_chunk_size = y_output_size,
+        .y = y_data,
+    };
     var idx: usize = 0;
-    while (i < x.len) {
+    const total = x.len / x_chunk_size;
+    while (idx < total) : (idx += 1) {
+        const i = idx * x_chunk_size;
         const x_chunk = x[i .. i + x_chunk_size];
         const x_buffer = result.x[i .. i + x_chunk_size];
         copy_image_data(x_chunk, x_buffer);
         const y_index = idx * result.y_chunk_size;
         const y_buffer = result.y[y_index .. y_index + result.y_chunk_size];
         write_digit(y[idx], y_buffer);
-
-        idx += 1;
-        i += x_chunk_size;
     }
     return result;
 }
