@@ -1,5 +1,5 @@
 const std = @import("std");
-const lin = @import("linalg.zig");
+const linalg = @import("linalg.zig");
 const layers = @import("layer.zig");
 const mnist = @import("mnist.zig");
 const maths = @import("maths.zig");
@@ -122,13 +122,13 @@ pub fn main() !void {
                 var x_data = train_data_points.x_at(i);
                 var y_data = train_data_points.y_at(i);
 
-                var x = lin.Matrix{
+                var x = linalg.Matrix{
                     .data = x_data,
                     .rows = x_data.len,
                     .cols = 1,
                 };
 
-                var y = lin.Matrix{
+                var y = linalg.Matrix{
                     .data = y_data,
                     .rows = y_data.len,
                     .cols = 1,
@@ -173,7 +173,7 @@ pub fn main() !void {
         var correct: usize = 0;
         while (i < test_data.len()) : (i += 1) {
             var x_data = test_data.x_at(i);
-            var x = lin.Matrix{
+            var x = linalg.Matrix{
                 .data = x_data,
                 .rows = image_size,
                 .cols = 1,
