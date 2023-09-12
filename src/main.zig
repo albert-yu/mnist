@@ -96,7 +96,7 @@ pub fn main() !void {
 
     const HIDDEN_LAYER_SIZE = 30;
     const ETA = 0.05;
-    const EPOCHS = 25;
+    const EPOCHS = 100;
 
     var layer1 = try layers.Layer(image_size, HIDDEN_LAYER_SIZE).alloc(allocator);
     defer layer1.dealloc(allocator);
