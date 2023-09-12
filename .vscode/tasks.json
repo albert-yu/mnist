@@ -20,29 +20,6 @@
             ]
         },
         {
-            "label": "test network",
-            "command": "zig",
-            "args": [
-                "test",
-                "src/network.zig"
-            ],
-            "problemMatcher": [
-                "$zig"
-            ]
-        },
-        {
-            "label": "build network test",
-            "command": "zig",
-            "args": [
-                "test",
-                "-femit-bin=zig-out/bin/network-test",
-                "src/network.zig"
-            ],
-            "problemMatcher": [
-                "$zig"
-            ]
-        },
-        {
             "label": "test layer",
             "command": "zig",
             "args": [

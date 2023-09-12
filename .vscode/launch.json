@@ -16,17 +16,6 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug neural network test",
-            "preLaunchTask": "build network test",
-            "program": "${workspaceFolder}/zig-out/bin/network-test",
-            "args": [
-                "/opt/homebrew/bin/zig"
-            ],
-            "cwd": "${workspaceFolder}",
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
             "name": "Debug layer test",
             "preLaunchTask": "build layer test",
             "program": "${workspaceFolder}/zig-out/bin/layer-test",
