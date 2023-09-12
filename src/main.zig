@@ -12,7 +12,7 @@ fn get_double_word(bytes: []u8, offset: usize) u32 {
 
 fn console_print_image(img_bytes: []f64, num_rows: usize) void {
     // console print
-    for (img_bytes) |pixel, i| {
+    for (img_bytes, 0..) |pixel, i| {
         if (i % num_rows == 0) {
             std.debug.print("\n", .{});
         }
@@ -38,7 +38,7 @@ fn read_file(allocator: std.mem.Allocator, filename: []const u8) ![]u8 {
 fn find_max_index(buf: []f64) usize {
     var max_i: usize = 0;
     var max: f64 = buf[0];
-    for (buf) |val, i| {
+    for (buf, 0..) |val, i| {
         if (i == 0) {
             continue;
         }
@@ -118,7 +118,7 @@ pub fn main() !void {
         try train_data_points.shuffle(allocator);
         stopwatch.report("shuffle");
         var batch_index: usize = 0;
-        const scalar = ETA / @intToFloat(f64, BATCH_SIZE);
+        const scalar = ETA / @as(f64, @floatFromInt(BATCH_SIZE));
         while (batch_index < batch_count) : (batch_index += 1) {
             var i = batch_index * BATCH_SIZE;
             const end = i + BATCH_SIZE;

@@ -8,8 +8,8 @@ pub fn free_mnist_data_points_soa(allocator: std.mem.Allocator, soa: data_point.
 
 /// Assumed to be the same length
 fn copy_image_data(input: []const u8, output: []f64) void {
-    for (input) |pixel, i| {
-        const x_val = @intToFloat(f64, pixel);
+    for (input, 0..) |pixel, i| {
+        const x_val = @as(f64, @floatFromInt(pixel));
         // normalize
         output[i] = x_val / 255;
     }
@@ -52,7 +52,7 @@ pub fn make_mnist_data_points_soa(allocator: std.mem.Allocator, x: []const u8, x
 /// ```
 fn write_digit(digit: u8, buf: []f64) void {
     // clear all
-    for (buf) |_, i| {
+    for (buf, 0..) |_, i| {
         buf[i] = 0;
     }
     buf[digit] = 1;

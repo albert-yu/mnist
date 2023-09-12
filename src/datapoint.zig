@@ -1,7 +1,7 @@
 const std = @import("std");
 
 fn copy_slice(src: []f64, dest: []f64) void {
-    for (src) |elem, i| {
+    for (src, 0..) |elem, i| {
         dest[i] = elem;
     }
 }

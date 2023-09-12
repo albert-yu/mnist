@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Add `vec1` and `vec2`, store result in `out`
 fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
-    for (vec1) |val, i| {
+    for (vec1, 0..) |val, i| {
         const other_val = vec2[i];
         out[i] = val + other_val;
     }
@@ -10,7 +10,7 @@ fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
 
 /// Subtract `vec2` from `vec1`, store result in `out`
 fn subtract(vec1: []f64, vec2: []const f64, out: []f64) void {
-    for (vec1) |val, i| {
+    for (vec1, 0..) |val, i| {
         const other_val = vec2[i];
         out[i] = val - other_val;
     }
@@ -21,7 +21,7 @@ fn subtract(vec1: []f64, vec2: []const f64, out: []f64) void {
 /// Assumes `out` is allocated to be the same length as both
 /// `vec1` and `vec2`.
 fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
-    for (vec1) |el1, i| {
+    for (vec1, 0..) |el1, i| {
         const el2 = vec2[i];
         out[i] = el1 * el2;
     }
@@ -56,7 +56,7 @@ pub const Matrix = struct {
     }
 
     pub fn print(self: Matrix) void {
-        for (self.data) |el, i| {
+        for (self.data, 0..) |el, i| {
             if (i % self.cols == 0) {
                 std.debug.print("\n", .{});
             }
@@ -67,7 +67,7 @@ pub const Matrix = struct {
 
     pub fn print_upper_left(self: Matrix, limit: usize) void {
         var j: usize = 0;
-        for (self.data) |el, i| {
+        for (self.data, 0..) |el, i| {
             if (i >= limit) {
                 continue;
             }
@@ -107,14 +107,14 @@ pub const Matrix = struct {
 
     /// Sets all elements to 0
     pub fn zeroes(self: Matrix) void {
-        for (self.data) |_, i| {
+        for (self.data, 0..) |_, i| {
             self.data[i] = 0;
         }
     }
 
     /// scales all matrix elements in-place
     pub fn scale(self: Matrix, scalar: f64) void {
-        for (self.data) |elem, i| {
+        for (self.data, 0..) |elem, i| {
             self.data[i] = elem * scalar;
         }
     }
@@ -177,7 +177,7 @@ pub const Matrix = struct {
     }
 
     pub fn for_each(self: Matrix, comptime op: fn (f64) f64) void {
-        for (self.data) |_, i| {
+        for (self.data, 0..) |_, i| {
             self.data[i] = op(self.data[i]);
         }
     }
@@ -211,7 +211,7 @@ pub const Matrix = struct {
     /// Copies the input data into its own data buffer
     /// without checking bounds
     pub fn copy_data_unsafe(self: Matrix, data: []f64) void {
-        for (data) |elem, i| {
+        for (data, 0..) |elem, i| {
             self.data[i] = elem;
         }
     }
@@ -244,7 +244,7 @@ pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols:
         return error.DimensionsMismatch;
     }
     var matrix = try alloc_matrix(allocator, rows, cols);
-    for (data) |val, i| {
+    for (data, 0..) |val, i| {
         matrix.data[i] = val;
     }
     return matrix;

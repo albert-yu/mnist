@@ -84,19 +84,19 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         pub fn init_randn(self: Self) void {
             const randgen = std.rand.DefaultPrng;
             var rand = randgen.init(1);
-            for (self.weights.data) |_, i| {
+            for (self.weights.data, 0..) |_, i| {
                 self.weights.data[i] = rand.random().floatNorm(f64);
             }
-            for (self.biases.data) |_, i| {
+            for (self.biases.data, 0..) |_, i| {
                 self.biases.data[i] = rand.random().floatNorm(f64);
             }
         }
 
         pub fn init_zeros(self: Self) void {
-            for (self.weights.data) |_, i| {
+            for (self.weights.data, 0..) |_, i| {
                 self.weights.data[i] = 0;
             }
-            for (self.biases.data) |_, i| {
+            for (self.biases.data, 0..) |_, i| {
                 self.biases.data[i] = 0;
             }
         }
