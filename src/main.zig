@@ -111,8 +111,8 @@ pub fn main() !void {
 
     var epoch_index: usize = 0;
     while (epoch_index < EPOCHS) : (epoch_index += 1) {
-        // try train_data_points.shuffle(allocator);
-        std.debug.print("training...\n", .{});
+        try train_data_points.shuffle(allocator);
+        std.debug.print("training epoch {} of {}\n", .{ epoch_index + 1, EPOCHS });
         var batch_index: usize = 0;
         const scalar = ETA / @intToFloat(f64, BATCH_SIZE);
         while (batch_index < batch_count) : (batch_index += 1) {
