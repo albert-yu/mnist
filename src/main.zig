@@ -3,6 +3,7 @@ const linalg = @import("linalg.zig");
 const layers = @import("layer.zig");
 const mnist = @import("mnist.zig");
 const maths = @import("maths.zig");
+const perf = @import("performance.zig");
 
 fn get_double_word(bytes: []u8, offset: usize) u32 {
     const slice = bytes[offset .. offset + 4][0..4];
@@ -109,10 +110,13 @@ pub fn main() !void {
 
     const batch_count = train_data_points.len() / BATCH_SIZE;
 
+    var stopwatch = perf.Stopwatch.new();
     var epoch_index: usize = 0;
     while (epoch_index < EPOCHS) : (epoch_index += 1) {
-        try train_data_points.shuffle(allocator);
         std.debug.print("training epoch {} of {}\n", .{ epoch_index + 1, EPOCHS });
+        stopwatch.start();
+        try train_data_points.shuffle(allocator);
+        stopwatch.report("shuffle");
         var batch_index: usize = 0;
         const scalar = ETA / @intToFloat(f64, BATCH_SIZE);
         while (batch_index < batch_count) : (batch_index += 1) {
@@ -168,6 +172,7 @@ pub fn main() !void {
                 try layer2.weights.sub(grad2.weights, &layer2.weights);
             }
         }
+        stopwatch.report("trained");
         std.debug.print("evaluating...", .{});
 
         var i: usize = 0;

@@ -3,6 +3,12 @@ const std = @import("std");
 pub const Stopwatch = struct {
     last_ts: i128,
 
+    pub fn new() Stopwatch {
+        return Stopwatch{
+            .last_ts = 0,
+        };
+    }
+
     pub fn start(self: *Stopwatch) void {
         self.last_ts = std.time.nanoTimestamp();
     }
