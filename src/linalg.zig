@@ -1,18 +1,7 @@
 const std = @import("std");
-/// Computes inner (dot) product.
-///
-/// Input vectors assumed to be of equal length.
-pub fn inner_product(vec1: []f64, vec2: []f64) f64 {
-    var result: f64 = 0;
-    for (vec1) |val, i| {
-        const other_val = vec2[i];
-        result += val * other_val;
-    }
-    return result;
-}
 
 /// Add `vec1` and `vec2`, store result in `out`
-pub fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
+fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
     for (vec1) |val, i| {
         const other_val = vec2[i];
         out[i] = val + other_val;
@@ -20,7 +9,7 @@ pub fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
 }
 
 /// Subtract `vec2` from `vec1`, store result in `out`
-pub fn subtract(vec1: []f64, vec2: []const f64, out: []f64) void {
+fn subtract(vec1: []f64, vec2: []const f64, out: []f64) void {
     for (vec1) |val, i| {
         const other_val = vec2[i];
         out[i] = val - other_val;
@@ -62,10 +51,6 @@ pub fn transpose(in: Matrix, out: *Matrix) void {
             out.set(j, i, in.at(i, j));
         }
     }
-}
-
-pub fn accumulate(acc: []f64, addend: []f64) void {
-    sum(acc, addend, acc);
 }
 
 pub const Matrix = struct {
@@ -345,16 +330,6 @@ test "matrix application test" {
     var expected_1: f64 = 22;
     try std.testing.expectApproxEqRel(expected_0, result[0], err_tolerance);
     try std.testing.expectApproxEqRel(expected_1, result[1], err_tolerance);
-}
-
-test "accumulate test" {
-    var vector = [_]f64{ 1, 2 };
-    var addend = [_]f64{ 2, 3 };
-    accumulate(&vector, &addend);
-    var expected_0: f64 = 3;
-    var expected_1: f64 = 5;
-    try std.testing.expectApproxEqRel(expected_0, vector[0], err_tolerance);
-    try std.testing.expectApproxEqRel(expected_1, vector[1], err_tolerance);
 }
 
 test "transpose test" {
