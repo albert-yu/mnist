@@ -34,3 +34,4 @@ Right now, it's a very basic, slow implementation. A couple of improvements coul
 
 1. Leverage a BLAS library or similar for faster matrix multiplication
 2. Batch inputs and outputs in a concatenated matrix rather than loop through each data point individually (would benefit from implementing (1) first)
+3. Use arena allocation for less memory allocation overhead
