@@ -55,14 +55,6 @@ pub const Matrix = struct {
         return self.data.len;
     }
 
-    pub inline fn num_rows(self: Matrix) usize {
-        return self.rows;
-    }
-
-    pub inline fn num_cols(self: Matrix) usize {
-        return self.cols;
-    }
-
     pub fn print(self: Matrix) void {
         for (self.data) |el, i| {
             if (i % self.cols == 0) {
@@ -96,20 +88,20 @@ pub const Matrix = struct {
     }
 
     pub fn add(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.num_cols() != other.num_cols() or self.num_rows() != other.num_rows()) {
+        if (self.cols != other.cols or self.rows != other.rows) {
             return error.MatrixDimensionError;
         }
-        out.rows = self.num_rows();
-        out.cols = self.num_cols();
+        out.rows = self.rows;
+        out.cols = self.cols;
         sum(self.data, other.data, out.data);
     }
 
     pub fn sub(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.num_cols() != other.num_cols() or self.num_rows() != other.num_rows()) {
+        if (self.cols != other.cols or self.rows != other.rows) {
             return error.MatrixDimensionError;
         }
-        out.rows = self.num_rows();
-        out.cols = self.num_cols();
+        out.rows = self.rows;
+        out.cols = self.cols;
         subtract(self.data, other.data, out.data);
     }
 
@@ -128,15 +120,15 @@ pub const Matrix = struct {
     }
 
     pub fn multiply_unsafe(self: Matrix, right: Matrix, out: *Matrix) void {
-        out.rows = self.num_rows();
-        out.cols = right.num_cols();
+        out.rows = self.rows;
+        out.cols = right.cols;
         var i: usize = 0;
-        while (i < out.num_rows()) : (i += 1) {
+        while (i < out.rows) : (i += 1) {
             var j: usize = 0;
-            while (j < out.num_cols()) : (j += 1) {
+            while (j < out.cols) : (j += 1) {
                 var acc: f64 = 0;
                 var k: usize = 0;
-                while (k < self.num_cols()) : (k += 1) {
+                while (k < self.cols) : (k += 1) {
                     acc += self.at(i, k) * right.at(k, j);
                 }
                 out.set(i, j, acc);
@@ -148,7 +140,7 @@ pub const Matrix = struct {
     /// Assumes `out` is properly allocated, but will set
     /// the correct rows and cols.
     pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.num_cols() != right.num_rows()) {
+        if (self.cols != right.rows) {
             return error.MatrixDimensionError;
         }
         self.multiply_unsafe(right, out);
@@ -235,7 +227,7 @@ pub const Matrix = struct {
     }
 
     pub fn make_copy(self: Matrix, allocator: std.mem.Allocator) !*Matrix {
-        var copied = try alloc_matrix_with_values(allocator, self.num_rows(), self.num_cols(), self.data);
+        var copied = try alloc_matrix_with_values(allocator, self.rows, self.cols, self.data);
         return copied;
     }
 };
@@ -280,7 +272,7 @@ pub fn matrix_multiply(allocator: std.mem.Allocator, matrix_left: Matrix, matrix
 }
 
 pub fn matrix_copy(allocator: std.mem.Allocator, matrix: Matrix) !*Matrix {
-    var result = try alloc_matrix_with_values(allocator, matrix.num_rows(), matrix.num_cols(), matrix.data);
+    var result = try alloc_matrix_with_values(allocator, matrix.rows, matrix.cols, matrix.data);
     return result;
 }
 
