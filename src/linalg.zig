@@ -20,19 +20,11 @@ fn subtract(vec1: []f64, vec2: []const f64, out: []f64) void {
 ///
 /// Assumes `out` is allocated to be the same length as both
 /// `vec1` and `vec2`.
-pub fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
+fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
     for (vec1) |el1, i| {
         const el2 = vec2[i];
         out[i] = el1 * el2;
     }
-}
-
-pub fn l2norm(vec: []f64) f64 {
-    var result: f64 = 0;
-    for (vec) |el| {
-        result += el * el;
-    }
-    return result;
 }
 
 /// Sets the resulting transposed matrix
@@ -40,7 +32,7 @@ pub fn l2norm(vec: []f64) f64 {
 ///
 /// In-place transposition is a non-trivial problem:
 /// https://en.wikipedia.org/wiki/In-place_matrix_transposition
-pub fn transpose(in: Matrix, out: *Matrix) void {
+fn transpose(in: Matrix, out: *Matrix) void {
     // swap rows and columns
     out.rows = in.cols;
     out.cols = in.rows;
@@ -101,24 +93,6 @@ pub const Matrix = struct {
             j += 1;
         }
         std.debug.print("\n", .{});
-    }
-
-    /// Applies the matrix as a ar transformation
-    /// to the vector (left multiplication),
-    /// assuming correct dimensions.
-    /// Writes the result to out
-    pub fn apply(self: Matrix, vec: []const f64, out: []f64) void {
-        var i: usize = 0;
-        while (i < self.rows) : (i += 1) {
-            var acc: f64 = 0;
-            var j: usize = 0;
-            while (j < self.cols) : (j += 1) {
-                var value = self.at(i, j);
-                var vec_value = vec[j];
-                acc += value * vec_value;
-            }
-            out[i] = acc;
-        }
     }
 
     pub fn add(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
@@ -311,26 +285,6 @@ pub fn matrix_copy(allocator: std.mem.Allocator, matrix: Matrix) !*Matrix {
 }
 
 const err_tolerance = 1e-9;
-
-test "matrix application test" {
-    var matrix_data = [_]f64{
-        1, 2, 1,
-        4, 3, 4,
-    };
-    var matrix = Matrix{
-        .data = &matrix_data,
-        .rows = 2,
-        .cols = 3,
-    };
-    var vec = [_]f64{ 3, 2, 1 };
-    var result = [_]f64{0} ** 2;
-    matrix.apply(&vec, &result);
-    // (8 22)^T
-    var expected_0: f64 = 8;
-    var expected_1: f64 = 22;
-    try std.testing.expectApproxEqRel(expected_0, result[0], err_tolerance);
-    try std.testing.expectApproxEqRel(expected_1, result[1], err_tolerance);
-}
 
 test "transpose test" {
     var matrix_data = [_]f64{
