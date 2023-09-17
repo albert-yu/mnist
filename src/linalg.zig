@@ -115,10 +115,6 @@ pub const Matrix = struct {
         }
     }
 
-    pub fn dealloc_data(self: Matrix, allocator: std.mem.Allocator) void {
-        free_matrix_data(allocator, self);
-    }
-
     pub fn sub_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
         var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
         try alloc_matrix_data(allocator, &result, self.rows, right.cols);
@@ -198,10 +194,6 @@ pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: us
     matrix.cols = cols;
 }
 
-pub fn free_matrix_data(allocator: std.mem.Allocator, matrix: Matrix) void {
-    allocator.free(matrix.data);
-}
-
 pub fn alloc_matrix(allocator: std.mem.Allocator, rows: usize, cols: usize) error{OutOfMemory}!*Matrix {
     var matrix = try allocator.create(Matrix);
     try alloc_matrix_data(allocator, matrix, rows, cols);
@@ -221,7 +213,7 @@ pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols:
 }
 
 pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
-    free_matrix_data(allocator, matrix.*);
+    matrix.dealloc(allocator);
     allocator.destroy(matrix);
 }
 

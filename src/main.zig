@@ -141,20 +141,20 @@ pub fn main() !void {
 
                 // forward
                 var activations1 = try layer1.forward(allocator, x, maths.sigmoid);
-                defer activations1.dealloc_data(allocator);
+                defer activations1.dealloc(allocator);
 
                 var activations2 = try layer2.forward(allocator, activations1, maths.sigmoid);
-                defer activations2.dealloc_data(allocator);
+                defer activations2.dealloc(allocator);
 
                 var err = try activations2.sub_alloc(allocator, y);
-                defer err.dealloc_data(allocator);
+                defer err.dealloc(allocator);
 
                 // backward
                 var grad2 = try layer2.backward(allocator, err, maths.sigmoid_prime);
                 defer grad2.dealloc(allocator);
 
                 var err_inner = try layer2.weights.t_alloc(allocator);
-                defer err_inner.dealloc_data(allocator);
+                defer err_inner.dealloc(allocator);
 
                 err_inner.multiply(grad2.biases, &err_inner);
                 var grad1 = try layer1.backward(allocator, err_inner, maths.sigmoid_prime);
@@ -187,10 +187,10 @@ pub fn main() !void {
             var y_data = test_data.y_at(i);
 
             var activations1 = try layer1.forward(allocator, x, maths.sigmoid);
-            defer activations1.dealloc_data(allocator);
+            defer activations1.dealloc(allocator);
 
             var activations2 = try layer2.forward(allocator, activations1, maths.sigmoid);
-            defer activations2.dealloc_data(allocator);
+            defer activations2.dealloc(allocator);
 
             const expected = find_max_index(y_data);
             const actual = find_max_index(activations2.data);
