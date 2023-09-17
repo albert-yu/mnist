@@ -176,7 +176,7 @@ pub const Matrix = struct {
 
     /// Copies the input data into its own data buffer
     /// without checking bounds
-    pub fn copy_data_unsafe(self: Self, data: []f64) void {
+    pub fn set_data(self: Self, data: []f64) void {
         for (data, 0..) |elem, i| {
             self.data[i] = elem;
         }

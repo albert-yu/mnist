@@ -62,7 +62,7 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         pub fn forward(self: *Self, allocator: std.mem.Allocator, input: linalg.Matrix, comptime activation_fn: fn (f64) f64) !linalg.Matrix {
             var result = try self.weights.mul_alloc(allocator, input);
             result.add(self.biases, &result);
-            self.last_z.copy_data_unsafe(result.data);
+            self.last_z.set_data(result.data);
             result.for_each(activation_fn);
             self.last_input = input;
             return result;
@@ -124,8 +124,8 @@ test "feedforward test" {
         0.5,
         0.5,
     };
-    layer1.weights.copy_data_unsafe(&w_1);
-    layer1.biases.copy_data_unsafe(&b_1);
+    layer1.weights.set_data(&w_1);
+    layer1.biases.set_data(&b_1);
 
     var w_2 = [_]f64{
         -1, 0,
@@ -136,8 +136,8 @@ test "feedforward test" {
         0.2,
     };
 
-    layer2.weights.copy_data_unsafe(&w_2);
-    layer2.biases.copy_data_unsafe(&b_2);
+    layer2.weights.set_data(&w_2);
+    layer2.biases.set_data(&b_2);
     var input_x = [_]f64{
         0.1,
         0.1,
