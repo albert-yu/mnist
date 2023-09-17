@@ -60,7 +60,7 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         }
 
         pub fn forward(self: *Self, allocator: std.mem.Allocator, input: linalg.Matrix, comptime activation_fn: fn (f64) f64) !linalg.Matrix {
-            var result = try self.weights.mult_alloc(allocator, input);
+            var result = try self.weights.mul_alloc(allocator, input);
             result.add(self.biases, &result);
             self.last_z.copy_data_unsafe(result.data);
             result.for_each(activation_fn);
@@ -77,7 +77,7 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
 
             var last_input_t = try self.last_input.t_alloc(allocator);
             defer last_input_t.dealloc_data(allocator);
-            try gradient_results.biases.multiply(last_input_t, &gradient_results.weights);
+            gradient_results.biases.multiply(last_input_t, &gradient_results.weights);
             return gradient_results;
         }
 

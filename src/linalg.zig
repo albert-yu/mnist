@@ -119,13 +119,6 @@ pub const Matrix = struct {
         free_matrix_data(allocator, self);
     }
 
-    pub fn mult_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
-        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
-        try alloc_matrix_data(allocator, &result, self.rows, right.cols);
-        try self.multiply(right, &result);
-        return result;
-    }
-
     pub fn sub_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
         var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
         try alloc_matrix_data(allocator, &result, self.rows, right.cols);
