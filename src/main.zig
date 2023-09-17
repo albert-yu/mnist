@@ -162,14 +162,14 @@ pub fn main() !void {
 
                 // apply gradients
                 grad1.biases.scale(scalar);
-                try layer1.biases.sub(grad1.biases, &layer1.biases);
+                layer1.biases.sub(grad1.biases, &layer1.biases);
                 grad1.weights.scale(scalar);
-                try layer1.weights.sub(grad1.weights, &layer1.weights);
+                layer1.weights.sub(grad1.weights, &layer1.weights);
 
                 grad2.biases.scale(scalar);
-                try layer2.biases.sub(grad2.biases, &layer2.biases);
+                layer2.biases.sub(grad2.biases, &layer2.biases);
                 grad2.weights.scale(scalar);
-                try layer2.weights.sub(grad2.weights, &layer2.weights);
+                layer2.weights.sub(grad2.weights, &layer2.weights);
             }
         }
         stopwatch.report("trained");

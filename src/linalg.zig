@@ -96,10 +96,7 @@ pub const Matrix = struct {
         sum(self.data, other.data, out.data);
     }
 
-    pub fn sub(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.cols != other.cols or self.rows != other.rows) {
-            return error.MatrixDimensionError;
-        }
+    pub fn sub(self: Matrix, other: Matrix, out: *Matrix) void {
         out.rows = self.rows;
         out.cols = self.cols;
         subtract(self.data, other.data, out.data);
@@ -160,7 +157,7 @@ pub const Matrix = struct {
     pub fn sub_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
         var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
         try alloc_matrix_data(allocator, &result, self.rows, right.cols);
-        try self.sub(right, &result);
+        self.sub(right, &result);
         return result;
     }
 
