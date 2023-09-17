@@ -13,7 +13,7 @@ t10k-images-idx3-ubyte:  test set images
 t10k-labels-idx1-ubyte:  test set labels
 ```
 
-Without renaming, put them in a `data/` folder at the root of this project's directory.
+Without renaming the files, put them in a `data/` folder at the root of this project's directory.
 
 ```sh
 zig build
@@ -24,9 +24,9 @@ On my machine, getting around 93% accuracy with 100 epochs.
 
 ## Motivation
 
-This was a way for me to learn the basics of feed-forward neural networks. 
+This project was a way for me to (1) learn the fundamentals of neural networks and (2) learn [Zig](https://github.com/ziglang/zig).
 
-I started off using [this guide from Michael Nielsen](http://neuralnetworksanddeeplearning.com/index.html) and its Python example as a reference implementation. But translating the Python code directly to Zig was a clumsy effort. By chance, I stumbled upon [this blog post implementing mnist in Zig](https://monadmonkey.com/dnns-from-scratch-in-zig). Taking inspiration from there, I refactored my original implementation to hard-code the layers rather than loop.
+I started with [Michael Nielsen's excellent introduction to neural networks](http://neuralnetworksanddeeplearning.com/index.html) and the Python implementation within as a reference. But translating the Python code directly to Zig was a clumsy effort. By chance, I stumbled upon [this blog post implementing mnist in Zig](https://monadmonkey.com/dnns-from-scratch-in-zig). Taking inspiration from there, I refactored my original implementation to hard-code the layers and feedforward/backprop them explicitly instead of using a loop.
 
 ## Room for improvement
 
