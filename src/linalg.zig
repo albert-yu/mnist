@@ -27,24 +27,6 @@ fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
     }
 }
 
-/// Sets the resulting transposed matrix
-/// to `out`.
-///
-/// In-place transposition is a non-trivial problem:
-/// https://en.wikipedia.org/wiki/In-place_matrix_transposition
-fn transpose(in: Matrix, out: *Matrix) void {
-    // swap rows and columns
-    out.rows = in.cols;
-    out.cols = in.rows;
-    var i: usize = 0;
-    while (i < in.rows) : (i += 1) {
-        var j: usize = 0;
-        while (j < in.cols) : (j += 1) {
-            out.set(j, i, in.at(i, j));
-        }
-    }
-}
-
 pub const Matrix = struct {
     data: []f64,
     rows: usize,
@@ -163,10 +145,18 @@ pub const Matrix = struct {
 
     /// Transposes matrix and returns new one, which must be dealloc'd
     pub fn t_alloc(self: Matrix, allocator: std.mem.Allocator) !Matrix {
-        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
-        try alloc_matrix_data(allocator, &result, self.cols, self.rows);
-        transpose(self, &result);
-        return result;
+        var out = Matrix.new(self.cols, self.rows);
+        try out.alloc(allocator);
+
+        // swap rows and columns
+        var i: usize = 0;
+        while (i < self.rows) : (i += 1) {
+            var j: usize = 0;
+            while (j < self.cols) : (j += 1) {
+                out.set(j, i, self.at(i, j));
+            }
+        }
+        return out;
     }
 
     pub fn hadamard(self: Matrix, other: Matrix, out: *Matrix) void {
