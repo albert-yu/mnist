@@ -266,6 +266,7 @@ pub fn matrix_copy(allocator: std.mem.Allocator, matrix: Matrix) !*Matrix {
 const err_tolerance = 1e-9;
 
 test "transpose test" {
+    const allocator = std.testing.allocator;
     var matrix_data = [_]f64{
         1, 2, 3,
         4, 5, 6,
@@ -275,13 +276,8 @@ test "transpose test" {
         .rows = 2,
         .cols = 3,
     };
-    var t_matrix_init = [_]f64{0} ** matrix_data.len;
-    var t_matrix = Matrix{
-        .data = &t_matrix_init,
-        .rows = 0,
-        .cols = 0,
-    };
-    transpose(matrix, &t_matrix);
+    const t_matrix = try matrix.t_alloc(allocator);
+    defer t_matrix.dealloc(allocator);
     var expected_rows: usize = 3;
     var expected_cols: usize = 2;
     try std.testing.expectEqual(expected_rows, t_matrix.rows);
