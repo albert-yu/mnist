@@ -53,6 +53,12 @@ fn find_max_index(buf: []f64) usize {
 pub fn main() !void {
     const TRAIN_LABELS_FILE = "data/train-labels.idx1-ubyte";
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const status = gpa.deinit();
+        if (status == .leak) {
+            std.debug.panic("got leak", .{});
+        }
+    }
     const allocator = gpa.allocator();
     const train_labels_buffer = try read_file(allocator, TRAIN_LABELS_FILE);
     defer allocator.free(train_labels_buffer);
