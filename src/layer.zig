@@ -60,9 +60,9 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         }
 
         pub fn forward(self: *Self, allocator: std.mem.Allocator, input: linalg.Matrix, comptime activation_fn: fn (f64) f64) !linalg.Matrix {
-            var result = try self.weights.mult_alloc(allocator, input);
-            try result.add(self.biases, &result);
-            self.last_z.copy_data_unsafe(result.data);
+            var result = try self.weights.mul_alloc(allocator, input);
+            result.add(self.biases, &result);
+            self.last_z.set_data(result.data);
             result.for_each(activation_fn);
             self.last_input = input;
             return result;
@@ -71,13 +71,13 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         pub fn backward(self: Self, allocator: std.mem.Allocator, err: linalg.Matrix, comptime activation_prime: fn (f64) f64) !Gradients(IN, OUT) {
             var gradient_results = try Gradients(IN, OUT).alloc(allocator);
             var z_changes = try self.last_z.make_copy(allocator);
-            defer linalg.free_matrix(allocator, z_changes);
+            defer z_changes.dealloc(allocator);
             z_changes.for_each(activation_prime);
             z_changes.hadamard(err, &gradient_results.biases);
 
             var last_input_t = try self.last_input.t_alloc(allocator);
-            defer last_input_t.dealloc_data(allocator);
-            try gradient_results.biases.multiply(last_input_t, &gradient_results.weights);
+            defer last_input_t.dealloc(allocator);
+            gradient_results.biases.multiply(last_input_t, &gradient_results.weights);
             return gradient_results;
         }
 
@@ -102,9 +102,9 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         }
 
         pub fn dealloc(self: Self, allocator: std.mem.Allocator) void {
-            self.weights.dealloc_data(allocator);
-            self.biases.dealloc_data(allocator);
-            self.last_z.dealloc_data(allocator);
+            self.weights.dealloc(allocator);
+            self.biases.dealloc(allocator);
+            self.last_z.dealloc(allocator);
         }
     };
 }
@@ -124,8 +124,8 @@ test "feedforward test" {
         0.5,
         0.5,
     };
-    layer1.weights.copy_data_unsafe(&w_1);
-    layer1.biases.copy_data_unsafe(&b_1);
+    layer1.weights.set_data(&w_1);
+    layer1.biases.set_data(&b_1);
 
     var w_2 = [_]f64{
         -1, 0,
@@ -136,8 +136,8 @@ test "feedforward test" {
         0.2,
     };
 
-    layer2.weights.copy_data_unsafe(&w_2);
-    layer2.biases.copy_data_unsafe(&b_2);
+    layer2.weights.set_data(&w_2);
+    layer2.biases.set_data(&b_2);
     var input_x = [_]f64{
         0.1,
         0.1,
@@ -150,10 +150,10 @@ test "feedforward test" {
     const TOLERANCE = 1e-9;
 
     var result1 = try layer1.forward(allocator, input, maths.sigmoid);
-    defer result1.dealloc_data(allocator);
+    defer result1.dealloc(allocator);
 
     var result2 = try layer2.forward(allocator, result1, maths.sigmoid);
-    defer result2.dealloc_data(allocator);
+    defer result2.dealloc(allocator);
 
     // var output = network.output_layer();
     var expected_out = [_]f64{ 0.3903940131009935, 0.6996551604890665 };
@@ -186,14 +186,14 @@ test "backpropagation test" {
 
     // feedforward
     const result1 = try hidden_layer.forward(allocator, x, maths.sigmoid);
-    defer result1.dealloc_data(allocator);
+    defer result1.dealloc(allocator);
 
     const result2 = try output_layer.forward(allocator, result1, maths.sigmoid);
-    defer result2.dealloc_data(allocator);
+    defer result2.dealloc(allocator);
 
     // compute error
     var err = try result2.sub_alloc(allocator, y);
-    defer err.dealloc_data(allocator);
+    defer err.dealloc(allocator);
 
     // backward
     var grad1 = try output_layer.backward(allocator, err, maths.sigmoid_prime);

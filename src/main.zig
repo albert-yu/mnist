@@ -53,6 +53,12 @@ fn find_max_index(buf: []f64) usize {
 pub fn main() !void {
     const TRAIN_LABELS_FILE = "data/train-labels.idx1-ubyte";
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const status = gpa.deinit();
+        if (status == .leak) {
+            std.debug.panic("got leak", .{});
+        }
+    }
     const allocator = gpa.allocator();
     const train_labels_buffer = try read_file(allocator, TRAIN_LABELS_FILE);
     defer allocator.free(train_labels_buffer);
@@ -141,35 +147,35 @@ pub fn main() !void {
 
                 // forward
                 var activations1 = try layer1.forward(allocator, x, maths.sigmoid);
-                defer activations1.dealloc_data(allocator);
+                defer activations1.dealloc(allocator);
 
                 var activations2 = try layer2.forward(allocator, activations1, maths.sigmoid);
-                defer activations2.dealloc_data(allocator);
+                defer activations2.dealloc(allocator);
 
                 var err = try activations2.sub_alloc(allocator, y);
-                defer err.dealloc_data(allocator);
+                defer err.dealloc(allocator);
 
                 // backward
                 var grad2 = try layer2.backward(allocator, err, maths.sigmoid_prime);
                 defer grad2.dealloc(allocator);
 
                 var err_inner = try layer2.weights.t_alloc(allocator);
-                defer err_inner.dealloc_data(allocator);
+                defer err_inner.dealloc(allocator);
 
-                try err_inner.multiply(grad2.biases, &err_inner);
+                err_inner.multiply(grad2.biases, &err_inner);
                 var grad1 = try layer1.backward(allocator, err_inner, maths.sigmoid_prime);
                 defer grad1.dealloc(allocator);
 
                 // apply gradients
                 grad1.biases.scale(scalar);
-                try layer1.biases.sub(grad1.biases, &layer1.biases);
+                layer1.biases.sub(grad1.biases, &layer1.biases);
                 grad1.weights.scale(scalar);
-                try layer1.weights.sub(grad1.weights, &layer1.weights);
+                layer1.weights.sub(grad1.weights, &layer1.weights);
 
                 grad2.biases.scale(scalar);
-                try layer2.biases.sub(grad2.biases, &layer2.biases);
+                layer2.biases.sub(grad2.biases, &layer2.biases);
                 grad2.weights.scale(scalar);
-                try layer2.weights.sub(grad2.weights, &layer2.weights);
+                layer2.weights.sub(grad2.weights, &layer2.weights);
             }
         }
         stopwatch.report("trained");
@@ -187,10 +193,10 @@ pub fn main() !void {
             var y_data = test_data.y_at(i);
 
             var activations1 = try layer1.forward(allocator, x, maths.sigmoid);
-            defer activations1.dealloc_data(allocator);
+            defer activations1.dealloc(allocator);
 
             var activations2 = try layer2.forward(allocator, activations1, maths.sigmoid);
-            defer activations2.dealloc_data(allocator);
+            defer activations2.dealloc(allocator);
 
             const expected = find_max_index(y_data);
             const actual = find_max_index(activations2.data);

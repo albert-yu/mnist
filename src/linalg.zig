@@ -27,35 +27,43 @@ fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
     }
 }
 
-/// Sets the resulting transposed matrix
-/// to `out`.
-///
-/// In-place transposition is a non-trivial problem:
-/// https://en.wikipedia.org/wiki/In-place_matrix_transposition
-fn transpose(in: Matrix, out: *Matrix) void {
-    // swap rows and columns
-    out.rows = in.cols;
-    out.cols = in.rows;
-    var i: usize = 0;
-    while (i < in.rows) : (i += 1) {
-        var j: usize = 0;
-        while (j < in.cols) : (j += 1) {
-            out.set(j, i, in.at(i, j));
-        }
-    }
-}
-
 pub const Matrix = struct {
     data: []f64,
     rows: usize,
     cols: usize,
 
+    const Self = @This();
+
+    pub fn new(rows: usize, cols: usize) Self {
+        return Self{
+            .rows = rows,
+            .cols = cols,
+            .data = undefined,
+        };
+    }
+
+    pub fn alloc(self: *Self, allocator: std.mem.Allocator) !void {
+        self.data = try allocator.alloc(f64, self.rows * self.cols);
+    }
+
+    pub fn dealloc(self: Self, allocator: std.mem.Allocator) void {
+        allocator.free(self.data);
+    }
+
+    pub fn mul_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
+        var result = Self.new(self.rows, right.cols);
+
+        try result.alloc(allocator);
+        self.multiply(right, &result);
+        return result;
+    }
+
     /// Number of elements in this matrix
-    pub inline fn size(self: Matrix) usize {
+    pub inline fn size(self: Self) usize {
         return self.data.len;
     }
 
-    pub fn print(self: Matrix) void {
+    pub fn print(self: Self) void {
         for (self.data, 0..) |el, i| {
             if (i % self.cols == 0) {
                 std.debug.print("\n", .{});
@@ -65,61 +73,33 @@ pub const Matrix = struct {
         std.debug.print("\n", .{});
     }
 
-    pub fn print_upper_left(self: Matrix, limit: usize) void {
-        var j: usize = 0;
-        for (self.data, 0..) |el, i| {
-            if (i >= limit) {
-                continue;
-            }
-            if (j >= limit) {
-                j += 1;
-                continue;
-            }
-            if (i % self.cols == 0) {
-                std.debug.print("\n", .{});
-                std.debug.print("{} ", .{el});
-                j = 0;
-                continue;
-            }
-            std.debug.print("{} ", .{el});
-            j += 1;
-        }
-        std.debug.print("\n", .{});
-    }
-
-    pub fn add(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.cols != other.cols or self.rows != other.rows) {
-            return error.MatrixDimensionError;
-        }
+    pub fn add(self: Self, other: Self, out: *Self) void {
         out.rows = self.rows;
         out.cols = self.cols;
         sum(self.data, other.data, out.data);
     }
 
-    pub fn sub(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.cols != other.cols or self.rows != other.rows) {
-            return error.MatrixDimensionError;
-        }
+    pub fn sub(self: Self, other: Self, out: *Self) void {
         out.rows = self.rows;
         out.cols = self.cols;
         subtract(self.data, other.data, out.data);
     }
 
     /// Sets all elements to 0
-    pub fn zeroes(self: Matrix) void {
+    pub fn zeroes(self: Self) void {
         for (self.data, 0..) |_, i| {
             self.data[i] = 0;
         }
     }
 
     /// scales all matrix elements in-place
-    pub fn scale(self: Matrix, scalar: f64) void {
+    pub fn scale(self: Self, scalar: f64) void {
         for (self.data, 0..) |elem, i| {
             self.data[i] = elem * scalar;
         }
     }
 
-    pub fn multiply_unsafe(self: Matrix, right: Matrix, out: *Matrix) void {
+    fn multiply_inner(self: Self, right: Self, out: *Self) void {
         out.rows = self.rows;
         out.cols = right.cols;
         var i: usize = 0;
@@ -136,54 +116,47 @@ pub const Matrix = struct {
         }
     }
 
-    /// Multiples two matrices, stores result in `out`.
-    /// Assumes `out` is properly allocated, but will set
-    /// the correct rows and cols.
-    pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.cols != right.rows) {
-            return error.MatrixDimensionError;
-        }
-        self.multiply_unsafe(right, out);
+    pub fn multiply(self: Self, right: Self, out: *Self) void {
+        // cannot inline this for the case
+        // where out == &self (TODO: why?)
+        self.multiply_inner(right, out);
     }
 
-    pub fn dealloc_data(self: Matrix, allocator: std.mem.Allocator) void {
-        free_matrix_data(allocator, self);
-    }
-
-    pub fn mult_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
-        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
-        try alloc_matrix_data(allocator, &result, self.rows, right.cols);
-        try self.multiply(right, &result);
-        return result;
-    }
-
-    pub fn sub_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
-        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
-        try alloc_matrix_data(allocator, &result, self.rows, right.cols);
-        try self.sub(right, &result);
+    pub fn sub_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
+        var result = Self.new(self.rows, self.cols);
+        try result.alloc(allocator);
+        self.sub(right, &result);
         return result;
     }
 
     /// Transposes matrix and returns new one, which must be dealloc'd
-    pub fn t_alloc(self: Matrix, allocator: std.mem.Allocator) !Matrix {
-        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
-        try alloc_matrix_data(allocator, &result, self.cols, self.rows);
-        transpose(self, &result);
-        return result;
+    pub fn t_alloc(self: Self, allocator: std.mem.Allocator) !Self {
+        var out = Self.new(self.cols, self.rows);
+        try out.alloc(allocator);
+
+        // swap rows and columns
+        var i: usize = 0;
+        while (i < self.rows) : (i += 1) {
+            var j: usize = 0;
+            while (j < self.cols) : (j += 1) {
+                out.set(j, i, self.at(i, j));
+            }
+        }
+        return out;
     }
 
-    pub fn hadamard(self: Matrix, other: Matrix, out: *Matrix) void {
+    pub fn hadamard(self: Self, other: Self, out: *Self) void {
         hadamard_product(self.data, other.data, out.data);
     }
 
-    pub fn for_each(self: Matrix, comptime op: fn (f64) f64) void {
+    pub fn for_each(self: Self, comptime op: fn (f64) f64) void {
         for (self.data, 0..) |_, i| {
             self.data[i] = op(self.data[i]);
         }
     }
 
     /// Maps 2D indices to 1D underlying offset
-    inline fn get_offset(self: Matrix, i: usize, j: usize) usize {
+    inline fn get_offset(self: Self, i: usize, j: usize) usize {
         return i * self.cols + j;
     }
 
@@ -192,7 +165,7 @@ pub const Matrix = struct {
     /// Parameters:
     ///   i - 0-based row index
     ///   j - 0-based column index
-    pub inline fn at(self: Matrix, i: usize, j: usize) f64 {
+    pub inline fn at(self: Self, i: usize, j: usize) f64 {
         var index = self.get_offset(i, j);
         return self.data[index];
     }
@@ -203,72 +176,31 @@ pub const Matrix = struct {
     ///   i - 0-based row index
     ///   j - 0-based column index
     ///   value - value to set
-    pub fn set(self: Matrix, i: usize, j: usize, value: f64) void {
+    pub fn set(self: Self, i: usize, j: usize, value: f64) void {
         var index = self.get_offset(i, j);
         self.data[index] = value;
     }
 
     /// Copies the input data into its own data buffer
     /// without checking bounds
-    pub fn copy_data_unsafe(self: Matrix, data: []f64) void {
+    pub fn set_data(self: Self, data: []f64) void {
         for (data, 0..) |elem, i| {
             self.data[i] = elem;
         }
     }
 
-    pub fn make_copy(self: Matrix, allocator: std.mem.Allocator) !*Matrix {
-        var copied = try alloc_matrix_with_values(allocator, self.rows, self.cols, self.data);
+    pub fn make_copy(self: Self, allocator: std.mem.Allocator) !Self {
+        var copied = Self.new(self.rows, self.cols);
+        try copied.alloc(allocator);
+        copied.set_data(self.data);
         return copied;
     }
 };
 
-pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: usize, cols: usize) error{OutOfMemory}!void {
-    matrix.data = try allocator.alloc(f64, rows * cols);
-    matrix.rows = rows;
-    matrix.cols = cols;
-}
-
-pub fn free_matrix_data(allocator: std.mem.Allocator, matrix: Matrix) void {
-    allocator.free(matrix.data);
-}
-
-pub fn alloc_matrix(allocator: std.mem.Allocator, rows: usize, cols: usize) error{OutOfMemory}!*Matrix {
-    var matrix = try allocator.create(Matrix);
-    try alloc_matrix_data(allocator, matrix, rows, cols);
-    return matrix;
-}
-
-/// Copies the data input into allocated memory
-pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols: usize, data: []const f64) error{ DimensionsMismatch, OutOfMemory }!*Matrix {
-    if (rows * cols != data.len) {
-        return error.DimensionsMismatch;
-    }
-    var matrix = try alloc_matrix(allocator, rows, cols);
-    for (data, 0..) |val, i| {
-        matrix.data[i] = val;
-    }
-    return matrix;
-}
-
-pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
-    free_matrix_data(allocator, matrix.*);
-    allocator.destroy(matrix);
-}
-
-pub fn matrix_multiply(allocator: std.mem.Allocator, matrix_left: Matrix, matrix_right: Matrix) error{ MatrixDimensionError, OutOfMemory }!*Matrix {
-    var out_matrix = try alloc_matrix(allocator, matrix_left.rows, matrix_right.cols);
-    try matrix_left.multiply(matrix_right, out_matrix);
-    return out_matrix;
-}
-
-pub fn matrix_copy(allocator: std.mem.Allocator, matrix: Matrix) !*Matrix {
-    var result = try alloc_matrix_with_values(allocator, matrix.rows, matrix.cols, matrix.data);
-    return result;
-}
-
 const err_tolerance = 1e-9;
 
 test "transpose test" {
+    const allocator = std.testing.allocator;
     var matrix_data = [_]f64{
         1, 2, 3,
         4, 5, 6,
@@ -278,13 +210,8 @@ test "transpose test" {
         .rows = 2,
         .cols = 3,
     };
-    var t_matrix_init = [_]f64{0} ** matrix_data.len;
-    var t_matrix = Matrix{
-        .data = &t_matrix_init,
-        .rows = 0,
-        .cols = 0,
-    };
-    transpose(matrix, &t_matrix);
+    const t_matrix = try matrix.t_alloc(allocator);
+    defer t_matrix.dealloc(allocator);
     var expected_rows: usize = 3;
     var expected_cols: usize = 2;
     try std.testing.expectEqual(expected_rows, t_matrix.rows);
@@ -326,7 +253,7 @@ test "matrix multiplication test" {
         .cols = 2,
     };
 
-    try matrix.multiply(matrix_other, &out_matrix);
+    matrix.multiply(matrix_other, &out_matrix);
     var expected_out_data = [_]mat_t{
         11, 18,
         13, 24,
@@ -336,6 +263,7 @@ test "matrix multiplication test" {
 
 test "outer product test" {
     const mat_t = f64;
+    const allocator = std.testing.allocator;
     var data = [_]mat_t{
         1,
         2,
@@ -356,15 +284,9 @@ test "outer product test" {
         .rows = 1,
         .cols = data_other.len,
     };
-    comptime var total_size = 4 * 3;
-    var out_data = [_]mat_t{0} ** total_size;
-    var out_matrix = Matrix{
-        .data = &out_data,
-        .rows = 4,
-        .cols = 3,
-    };
 
-    try matrix.multiply(matrix_other, &out_matrix);
+    var out_matrix = try matrix.mul_alloc(allocator, matrix_other);
+    defer out_matrix.dealloc(allocator);
     var expected_out_data = [_]mat_t{
         1, 2, 3,
         2, 4, 6,
@@ -375,6 +297,7 @@ test "outer product test" {
 }
 
 test "inner product test" {
+    const allocator = std.testing.allocator;
     var data_a_t = [_]f64{
         1, 2, 3,
     };
@@ -388,13 +311,8 @@ test "inner product test" {
         .rows = data_a_t.len,
         .cols = 1,
     };
-    var out_data = [_]f64{0};
-    var out = Matrix{
-        .data = &out_data,
-        .rows = 1,
-        .cols = 1,
-    };
-    try a_t.multiply(a, &out);
+    var out = try a_t.mul_alloc(allocator, a);
+    defer out.dealloc(allocator);
     var expected_out_data = [_]f64{14};
     try std.testing.expectEqualSlices(f64, &expected_out_data, out.data);
 }
@@ -406,19 +324,23 @@ test "linear transform test with allocation" {
         0, 1, 0,
         0, 0, 1,
     };
-    const identity_matrix = try alloc_matrix_with_values(allocator, 3, 3, &identity_matrix_data);
-    defer free_matrix(allocator, identity_matrix);
+    var identity_matrix = Matrix.new(3, 3);
+    try identity_matrix.alloc(allocator);
+    defer identity_matrix.dealloc(allocator);
+    identity_matrix.set_data(&identity_matrix_data);
 
     var vector_data = [_]f64{
         4,
         0,
         223,
     };
-    const some_vector = try alloc_matrix_with_values(allocator, 3, 1, &vector_data);
-    defer free_matrix(allocator, some_vector);
+    var some_vector = Matrix.new(3, 1);
+    try some_vector.alloc(allocator);
+    defer some_vector.dealloc(allocator);
+    some_vector.set_data(&vector_data);
 
-    const result = try matrix_multiply(allocator, identity_matrix.*, some_vector.*);
-    defer free_matrix(allocator, result);
+    const result = try identity_matrix.mul_alloc(allocator, some_vector);
+    defer result.dealloc(allocator);
 
     try std.testing.expectEqualSlices(f64, result.data, some_vector.data);
 }
