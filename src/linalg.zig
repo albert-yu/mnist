@@ -99,7 +99,7 @@ pub const Matrix = struct {
         }
     }
 
-    pub fn multiply(self: Self, right: Self, out: *Self) void {
+    fn multiply_inner(self: Self, right: Self, out: *Self) void {
         out.rows = self.rows;
         out.cols = right.cols;
         var i: usize = 0;
@@ -114,6 +114,10 @@ pub const Matrix = struct {
                 out.set(i, j, acc);
             }
         }
+    }
+
+    pub fn multiply(self: Self, right: Self, out: *Self) void {
+        self.multiply_inner(right, out);
     }
 
     pub fn sub_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
