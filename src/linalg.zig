@@ -90,10 +90,7 @@ pub const Matrix = struct {
         std.debug.print("\n", .{});
     }
 
-    pub fn add(self: Matrix, other: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.cols != other.cols or self.rows != other.rows) {
-            return error.MatrixDimensionError;
-        }
+    pub fn add(self: Matrix, other: Matrix, out: *Matrix) void {
         out.rows = self.rows;
         out.cols = self.cols;
         sum(self.data, other.data, out.data);

@@ -61,7 +61,7 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
 
         pub fn forward(self: *Self, allocator: std.mem.Allocator, input: linalg.Matrix, comptime activation_fn: fn (f64) f64) !linalg.Matrix {
             var result = try self.weights.mult_alloc(allocator, input);
-            try result.add(self.biases, &result);
+            result.add(self.biases, &result);
             self.last_z.copy_data_unsafe(result.data);
             result.for_each(activation_fn);
             self.last_input = input;
