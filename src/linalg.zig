@@ -117,6 +117,8 @@ pub const Matrix = struct {
     }
 
     pub fn multiply(self: Self, right: Self, out: *Self) void {
+        // cannot inline this for the case
+        // where out == &self (TODO: why?)
         self.multiply_inner(right, out);
     }
 
