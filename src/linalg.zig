@@ -51,7 +51,7 @@ pub const Matrix = struct {
     }
 
     pub fn mul_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
-        var result = Matrix.new(self.cols, right.rows);
+        var result = Matrix.new(self.rows, right.cols);
         try result.alloc(allocator);
         self.multiply(right, &result);
         return result;
@@ -98,7 +98,7 @@ pub const Matrix = struct {
         }
     }
 
-    pub fn multiply_unsafe(self: Matrix, right: Matrix, out: *Matrix) void {
+    pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) void {
         out.rows = self.rows;
         out.cols = right.cols;
         var i: usize = 0;
@@ -113,16 +113,6 @@ pub const Matrix = struct {
                 out.set(i, j, acc);
             }
         }
-    }
-
-    /// Multiples two matrices, stores result in `out`.
-    /// Assumes `out` is properly allocated, but will set
-    /// the correct rows and cols.
-    pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) error{MatrixDimensionError}!void {
-        if (self.cols != right.rows) {
-            return error.MatrixDimensionError;
-        }
-        self.multiply_unsafe(right, out);
     }
 
     pub fn dealloc_data(self: Matrix, allocator: std.mem.Allocator) void {
@@ -309,7 +299,7 @@ test "matrix multiplication test" {
         .cols = 2,
     };
 
-    try matrix.multiply(matrix_other, &out_matrix);
+    matrix.multiply(matrix_other, &out_matrix);
     var expected_out_data = [_]mat_t{
         11, 18,
         13, 24,
@@ -347,7 +337,7 @@ test "outer product test" {
         .cols = 3,
     };
 
-    try matrix.multiply(matrix_other, &out_matrix);
+    matrix.multiply(matrix_other, &out_matrix);
     var expected_out_data = [_]mat_t{
         1, 2, 3,
         2, 4, 6,
@@ -377,7 +367,7 @@ test "inner product test" {
         .rows = 1,
         .cols = 1,
     };
-    try a_t.multiply(a, &out);
+    a_t.multiply(a, &out);
     var expected_out_data = [_]f64{14};
     try std.testing.expectEqualSlices(f64, &expected_out_data, out.data);
 }
@@ -400,8 +390,8 @@ test "linear transform test with allocation" {
     const some_vector = try alloc_matrix_with_values(allocator, 3, 1, &vector_data);
     defer free_matrix(allocator, some_vector);
 
-    const result = try matrix_multiply(allocator, identity_matrix.*, some_vector.*);
-    defer free_matrix(allocator, result);
+    const result = try identity_matrix.mul_alloc(allocator, some_vector.*);
+    defer result.dealloc(allocator);
 
     try std.testing.expectEqualSlices(f64, result.data, some_vector.data);
 }
