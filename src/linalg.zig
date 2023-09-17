@@ -190,35 +190,6 @@ pub const Matrix = struct {
     }
 };
 
-pub fn alloc_matrix_data(allocator: std.mem.Allocator, matrix: *Matrix, rows: usize, cols: usize) error{OutOfMemory}!void {
-    matrix.data = try allocator.alloc(f64, rows * cols);
-    matrix.rows = rows;
-    matrix.cols = cols;
-}
-
-pub fn alloc_matrix(allocator: std.mem.Allocator, rows: usize, cols: usize) error{OutOfMemory}!*Matrix {
-    var matrix = try allocator.create(Matrix);
-    try alloc_matrix_data(allocator, matrix, rows, cols);
-    return matrix;
-}
-
-/// Copies the data input into allocated memory
-pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols: usize, data: []const f64) error{ DimensionsMismatch, OutOfMemory }!*Matrix {
-    if (rows * cols != data.len) {
-        return error.DimensionsMismatch;
-    }
-    var matrix = try alloc_matrix(allocator, rows, cols);
-    for (data, 0..) |val, i| {
-        matrix.data[i] = val;
-    }
-    return matrix;
-}
-
-pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
-    matrix.dealloc(allocator);
-    allocator.destroy(matrix);
-}
-
 const err_tolerance = 1e-9;
 
 test "transpose test" {
