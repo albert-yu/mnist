@@ -51,7 +51,7 @@ pub const Matrix = struct {
     }
 
     pub fn mul_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
-        var result = Matrix.new(self.rows, right.cols);
+        var result = Self.new(self.rows, right.cols);
         try result.alloc(allocator);
         self.multiply(right, &result);
         return result;
@@ -62,7 +62,7 @@ pub const Matrix = struct {
         return self.data.len;
     }
 
-    pub fn print(self: Matrix) void {
+    pub fn print(self: Self) void {
         for (self.data, 0..) |el, i| {
             if (i % self.cols == 0) {
                 std.debug.print("\n", .{});
@@ -72,33 +72,33 @@ pub const Matrix = struct {
         std.debug.print("\n", .{});
     }
 
-    pub fn add(self: Matrix, other: Matrix, out: *Matrix) void {
+    pub fn add(self: Self, other: Self, out: *Self) void {
         out.rows = self.rows;
         out.cols = self.cols;
         sum(self.data, other.data, out.data);
     }
 
-    pub fn sub(self: Matrix, other: Matrix, out: *Matrix) void {
+    pub fn sub(self: Self, other: Self, out: *Self) void {
         out.rows = self.rows;
         out.cols = self.cols;
         subtract(self.data, other.data, out.data);
     }
 
     /// Sets all elements to 0
-    pub fn zeroes(self: Matrix) void {
+    pub fn zeroes(self: Self) void {
         for (self.data, 0..) |_, i| {
             self.data[i] = 0;
         }
     }
 
     /// scales all matrix elements in-place
-    pub fn scale(self: Matrix, scalar: f64) void {
+    pub fn scale(self: Self, scalar: f64) void {
         for (self.data, 0..) |elem, i| {
             self.data[i] = elem * scalar;
         }
     }
 
-    pub fn multiply(self: Matrix, right: Matrix, out: *Matrix) void {
+    pub fn multiply(self: Self, right: Self, out: *Self) void {
         out.rows = self.rows;
         out.cols = right.cols;
         var i: usize = 0;
@@ -115,16 +115,16 @@ pub const Matrix = struct {
         }
     }
 
-    pub fn sub_alloc(self: Matrix, allocator: std.mem.Allocator, right: Matrix) !Matrix {
-        var result = Matrix{ .rows = 0, .cols = 0, .data = undefined };
-        try alloc_matrix_data(allocator, &result, self.rows, right.cols);
+    pub fn sub_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
+        var result = Self.new(self.rows, self.cols);
+        try result.alloc(allocator);
         self.sub(right, &result);
         return result;
     }
 
     /// Transposes matrix and returns new one, which must be dealloc'd
-    pub fn t_alloc(self: Matrix, allocator: std.mem.Allocator) !Matrix {
-        var out = Matrix.new(self.cols, self.rows);
+    pub fn t_alloc(self: Self, allocator: std.mem.Allocator) !Self {
+        var out = Self.new(self.cols, self.rows);
         try out.alloc(allocator);
 
         // swap rows and columns
@@ -138,18 +138,18 @@ pub const Matrix = struct {
         return out;
     }
 
-    pub fn hadamard(self: Matrix, other: Matrix, out: *Matrix) void {
+    pub fn hadamard(self: Self, other: Self, out: *Self) void {
         hadamard_product(self.data, other.data, out.data);
     }
 
-    pub fn for_each(self: Matrix, comptime op: fn (f64) f64) void {
+    pub fn for_each(self: Self, comptime op: fn (f64) f64) void {
         for (self.data, 0..) |_, i| {
             self.data[i] = op(self.data[i]);
         }
     }
 
     /// Maps 2D indices to 1D underlying offset
-    inline fn get_offset(self: Matrix, i: usize, j: usize) usize {
+    inline fn get_offset(self: Self, i: usize, j: usize) usize {
         return i * self.cols + j;
     }
 
@@ -158,7 +158,7 @@ pub const Matrix = struct {
     /// Parameters:
     ///   i - 0-based row index
     ///   j - 0-based column index
-    pub inline fn at(self: Matrix, i: usize, j: usize) f64 {
+    pub inline fn at(self: Self, i: usize, j: usize) f64 {
         var index = self.get_offset(i, j);
         return self.data[index];
     }
@@ -169,20 +169,20 @@ pub const Matrix = struct {
     ///   i - 0-based row index
     ///   j - 0-based column index
     ///   value - value to set
-    pub fn set(self: Matrix, i: usize, j: usize, value: f64) void {
+    pub fn set(self: Self, i: usize, j: usize, value: f64) void {
         var index = self.get_offset(i, j);
         self.data[index] = value;
     }
 
     /// Copies the input data into its own data buffer
     /// without checking bounds
-    pub fn copy_data_unsafe(self: Matrix, data: []f64) void {
+    pub fn copy_data_unsafe(self: Self, data: []f64) void {
         for (data, 0..) |elem, i| {
             self.data[i] = elem;
         }
     }
 
-    pub fn make_copy(self: Matrix, allocator: std.mem.Allocator) !*Matrix {
+    pub fn make_copy(self: Self, allocator: std.mem.Allocator) !*Self {
         var copied = try alloc_matrix_with_values(allocator, self.rows, self.cols, self.data);
         return copied;
     }
@@ -221,11 +221,6 @@ pub fn matrix_multiply(allocator: std.mem.Allocator, matrix_left: Matrix, matrix
     var out_matrix = try alloc_matrix(allocator, matrix_left.rows, matrix_right.cols);
     try matrix_left.multiply(matrix_right, out_matrix);
     return out_matrix;
-}
-
-pub fn matrix_copy(allocator: std.mem.Allocator, matrix: Matrix) !*Matrix {
-    var result = try alloc_matrix_with_values(allocator, matrix.rows, matrix.cols, matrix.data);
-    return result;
 }
 
 const err_tolerance = 1e-9;
