@@ -71,7 +71,7 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
         pub fn backward(self: Self, allocator: std.mem.Allocator, err: linalg.Matrix, comptime activation_prime: fn (f64) f64) !Gradients(IN, OUT) {
             var gradient_results = try Gradients(IN, OUT).alloc(allocator);
             var z_changes = try self.last_z.make_copy(allocator);
-            defer linalg.free_matrix(allocator, z_changes);
+            defer z_changes.dealloc(allocator);
             z_changes.for_each(activation_prime);
             z_changes.hadamard(err, &gradient_results.biases);
 

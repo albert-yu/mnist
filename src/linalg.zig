@@ -182,8 +182,10 @@ pub const Matrix = struct {
         }
     }
 
-    pub fn make_copy(self: Self, allocator: std.mem.Allocator) !*Self {
-        var copied = try alloc_matrix_with_values(allocator, self.rows, self.cols, self.data);
+    pub fn make_copy(self: Self, allocator: std.mem.Allocator) !Self {
+        var copied = Self.new(self.rows, self.cols);
+        try copied.alloc(allocator);
+        copied.set_data(self.data);
         return copied;
     }
 };
@@ -215,12 +217,6 @@ pub fn alloc_matrix_with_values(allocator: std.mem.Allocator, rows: usize, cols:
 pub fn free_matrix(allocator: std.mem.Allocator, matrix: *Matrix) void {
     matrix.dealloc(allocator);
     allocator.destroy(matrix);
-}
-
-pub fn matrix_multiply(allocator: std.mem.Allocator, matrix_left: Matrix, matrix_right: Matrix) error{ MatrixDimensionError, OutOfMemory }!*Matrix {
-    var out_matrix = try alloc_matrix(allocator, matrix_left.rows, matrix_right.cols);
-    try matrix_left.multiply(matrix_right, out_matrix);
-    return out_matrix;
 }
 
 const err_tolerance = 1e-9;
@@ -359,18 +355,22 @@ test "linear transform test with allocation" {
         0, 1, 0,
         0, 0, 1,
     };
-    const identity_matrix = try alloc_matrix_with_values(allocator, 3, 3, &identity_matrix_data);
-    defer free_matrix(allocator, identity_matrix);
+    var identity_matrix = Matrix.new(3, 3);
+    try identity_matrix.alloc(allocator);
+    defer identity_matrix.dealloc(allocator);
+    identity_matrix.set_data(&identity_matrix_data);
 
     var vector_data = [_]f64{
         4,
         0,
         223,
     };
-    const some_vector = try alloc_matrix_with_values(allocator, 3, 1, &vector_data);
-    defer free_matrix(allocator, some_vector);
+    var some_vector = Matrix.new(3, 1);
+    try some_vector.alloc(allocator);
+    defer some_vector.dealloc(allocator);
+    some_vector.set_data(&vector_data);
 
-    const result = try identity_matrix.mul_alloc(allocator, some_vector.*);
+    const result = try identity_matrix.mul_alloc(allocator, some_vector);
     defer result.dealloc(allocator);
 
     try std.testing.expectEqualSlices(f64, result.data, some_vector.data);
