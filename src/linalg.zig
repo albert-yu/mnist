@@ -50,8 +50,33 @@ pub const Matrix = struct {
     rows: usize,
     cols: usize,
 
+    const Self = @This();
+
+    pub fn new(rows: usize, cols: usize) Self {
+        return Self{
+            .rows = rows,
+            .cols = cols,
+            .data = undefined,
+        };
+    }
+
+    pub fn alloc(self: *Self, allocator: std.mem.Allocator) !void {
+        self.data = try allocator.alloc(f64, self.rows * self.cols);
+    }
+
+    pub fn dealloc(self: Self, allocator: std.mem.Allocator) void {
+        allocator.free(self.data);
+    }
+
+    pub fn mul_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
+        var result = Matrix.new(self.cols, right.rows);
+        try result.alloc(allocator);
+        self.multiply(right, &result);
+        return result;
+    }
+
     /// Number of elements in this matrix
-    pub inline fn size(self: Matrix) usize {
+    pub inline fn size(self: Self) usize {
         return self.data.len;
     }
 
@@ -61,28 +86,6 @@ pub const Matrix = struct {
                 std.debug.print("\n", .{});
             }
             std.debug.print("{} ", .{el});
-        }
-        std.debug.print("\n", .{});
-    }
-
-    pub fn print_upper_left(self: Matrix, limit: usize) void {
-        var j: usize = 0;
-        for (self.data, 0..) |el, i| {
-            if (i >= limit) {
-                continue;
-            }
-            if (j >= limit) {
-                j += 1;
-                continue;
-            }
-            if (i % self.cols == 0) {
-                std.debug.print("\n", .{});
-                std.debug.print("{} ", .{el});
-                j = 0;
-                continue;
-            }
-            std.debug.print("{} ", .{el});
-            j += 1;
         }
         std.debug.print("\n", .{});
     }

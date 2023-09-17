@@ -27,24 +27,6 @@ fn hadamard_product(vec1: []f64, vec2: []f64, out: []f64) void {
     }
 }
 
-// /// Sets the resulting transposed matrix
-// /// to `out`.
-// ///
-// /// In-place transposition is a non-trivial problem:
-// /// https://en.wikipedia.org/wiki/In-place_matrix_transposition
-// fn transpose(in: Matrix, out: *Matrix) void {
-//     // swap rows and columns
-//     // out.rows = in.cols;
-//     // out.cols = in.rows;
-//     var i: usize = 0;
-//     while (i < in.rows) : (i += 1) {
-//         var j: usize = 0;
-//         while (j < in.cols) : (j += 1) {
-//             out.set(j, i, in.at(i, j));
-//         }
-//     }
-// }
-
 pub fn Matrix(comptime ROWS: usize, comptime COLS: usize) type {
     return struct {
         data: []f64,
