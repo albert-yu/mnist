@@ -52,6 +52,7 @@ pub const Matrix = struct {
 
     pub fn mul_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
         var result = Self.new(self.rows, right.cols);
+
         try result.alloc(allocator);
         self.multiply(right, &result);
         return result;
@@ -256,6 +257,7 @@ test "matrix multiplication test" {
 
 test "outer product test" {
     const mat_t = f64;
+    const allocator = std.testing.allocator;
     var data = [_]mat_t{
         1,
         2,
@@ -276,15 +278,9 @@ test "outer product test" {
         .rows = 1,
         .cols = data_other.len,
     };
-    comptime var total_size = 4 * 3;
-    var out_data = [_]mat_t{0} ** total_size;
-    var out_matrix = Matrix{
-        .data = &out_data,
-        .rows = 4,
-        .cols = 3,
-    };
 
-    matrix.multiply(matrix_other, &out_matrix);
+    var out_matrix = try matrix.mul_alloc(allocator, matrix_other);
+    defer out_matrix.dealloc(allocator);
     var expected_out_data = [_]mat_t{
         1, 2, 3,
         2, 4, 6,
@@ -295,6 +291,7 @@ test "outer product test" {
 }
 
 test "inner product test" {
+    const allocator = std.testing.allocator;
     var data_a_t = [_]f64{
         1, 2, 3,
     };
@@ -308,13 +305,8 @@ test "inner product test" {
         .rows = data_a_t.len,
         .cols = 1,
     };
-    var out_data = [_]f64{0};
-    var out = Matrix{
-        .data = &out_data,
-        .rows = 1,
-        .cols = 1,
-    };
-    a_t.multiply(a, &out);
+    var out = try a_t.mul_alloc(allocator, a);
+    defer out.dealloc(allocator);
     var expected_out_data = [_]f64{14};
     try std.testing.expectEqualSlices(f64, &expected_out_data, out.data);
 }
