@@ -98,6 +98,7 @@ pub fn main() !void {
 
     std.debug.print("making test data points...", .{});
     const test_data = try mnist.make_mnist_data_points_soa(allocator, test_images, image_size, test_labels, DIGITS);
+    defer mnist.free_mnist_data_points_soa(allocator, test_data);
     std.debug.print("made {} test data points.\n", .{test_data.len()});
 
     const HIDDEN_LAYER_SIZE = 30;
