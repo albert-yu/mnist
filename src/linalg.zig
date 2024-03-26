@@ -4,9 +4,11 @@ const VECTOR_SIZE = 8;
 
 const Vec8 = @Vector(VECTOR_SIZE, f64);
 
+const zero_vec: Vec8 = [_]f64{0} ** VECTOR_SIZE;
+
 fn aligned_calloc(allocator: std.mem.Allocator, size: usize) ![]Vec8 {
     const ptr = try allocator.alloc(Vec8, size);
-    @memset(ptr, Vec8{ 0, 0, 0, 0, 0, 0, 0, 0 });
+    @memset(ptr, zero_vec);
     return ptr;
 }
 
@@ -146,7 +148,7 @@ pub const Matrix = struct {
         // perform the multiplication
         for (0..(out.rows)) |i| {
             for (0..(out.cols)) |j| {
-                var acc = Vec8{ 0, 0, 0, 0, 0, 0, 0, 0 };
+                var acc = zero_vec;
                 for (0..n_blocks_l) |k| {
                     const left_val = a[i * n_blocks_l + k];
                     const right_val = b[j * n_blocks_r + k];
