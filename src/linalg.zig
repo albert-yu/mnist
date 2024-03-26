@@ -1,13 +1,13 @@
 const std = @import("std");
 
-const VECTOR_SIZE = 8;
+const VEC_SIZE = 4;
 
-const Vec8 = @Vector(VECTOR_SIZE, f64);
+const Vec = @Vector(VEC_SIZE, f64);
 
-const zero_vec: Vec8 = [_]f64{0} ** VECTOR_SIZE;
+const zero_vec: Vec = [_]f64{0} ** VEC_SIZE;
 
-fn aligned_calloc(allocator: std.mem.Allocator, size: usize) ![]Vec8 {
-    const ptr = try allocator.alloc(Vec8, size);
+fn aligned_calloc(allocator: std.mem.Allocator, size: usize) ![]Vec {
+    const ptr = try allocator.alloc(Vec, size);
     @memset(ptr, zero_vec);
     return ptr;
 }
@@ -115,30 +115,30 @@ pub const Matrix = struct {
     /// Multiply but like faster
     fn mul(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
         // number of blocks per row
-        const n_blocks_l = (self.cols + VECTOR_SIZE - 1) / VECTOR_SIZE;
-        var a: []Vec8 = try aligned_calloc(allocator, n_blocks_l * self.rows);
+        const n_blocks_l = (self.cols + VEC_SIZE - 1) / VEC_SIZE;
+        var a: []Vec = try aligned_calloc(allocator, n_blocks_l * self.rows);
         defer allocator.free(a);
 
         // populate a
         for (0..(self.rows)) |i| {
             for (0..(self.cols)) |j| {
                 const elem = self.at(i, j);
-                a[i * n_blocks_l + j / VECTOR_SIZE][j % VECTOR_SIZE] = elem;
+                a[i * n_blocks_l + j / VEC_SIZE][j % VEC_SIZE] = elem;
             }
         }
 
         // transpose right matrix for better cache locality
         const right_t_rows = right.cols;
         const right_t_cols = right.rows;
-        const n_blocks_r = (right_t_cols + VECTOR_SIZE - 1) / VECTOR_SIZE;
-        const b: []Vec8 = try aligned_calloc(allocator, n_blocks_r * right_t_rows);
+        const n_blocks_r = (right_t_cols + VEC_SIZE - 1) / VEC_SIZE;
+        const b: []Vec = try aligned_calloc(allocator, n_blocks_r * right_t_rows);
         defer allocator.free(b);
 
         // populate right_t values as vectors
         for (0..right_t_rows) |i| {
             for (0..right_t_cols) |j| {
                 const elem = right.at(j, i);
-                b[i * n_blocks_r + j / VECTOR_SIZE][j % VECTOR_SIZE] = elem;
+                b[i * n_blocks_r + j / VEC_SIZE][j % VEC_SIZE] = elem;
             }
         }
 
@@ -156,7 +156,7 @@ pub const Matrix = struct {
                 }
 
                 var final: f64 = 0;
-                for (0..VECTOR_SIZE) |k| {
+                for (0..VEC_SIZE) |k| {
                     final += acc[k];
                 }
                 out.set(i, j, final);
