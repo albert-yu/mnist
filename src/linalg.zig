@@ -148,7 +148,7 @@ pub const Matrix = struct {
         for (0..(out.rows)) |i| {
             for (0..(out.cols)) |j| {
                 var acc = Vec8{ 0, 0, 0, 0, 0, 0, 0, 0 };
-                for (0..(self.cols)) |k| {
+                for (0..left_rows_blocks) |k| {
                     const left_val = left_vec[i * left_rows_blocks + k];
                     const right_val = right_t_vec[k * right_t_cols_blocks + j];
                     acc += left_val * right_val;
