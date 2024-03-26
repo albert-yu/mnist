@@ -54,7 +54,7 @@ pub const Matrix = struct {
         var result = Self.new(self.rows, right.cols);
 
         try result.alloc(allocator);
-        self.multiply(right, &result);
+        try self.multiply(allocator, right, &result);
         return result;
     }
 
@@ -99,27 +99,33 @@ pub const Matrix = struct {
         }
     }
 
-    fn multiply_inner(self: Self, right: Self, out: *Self) void {
+    /// Multiply but like faster
+    fn mul(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
+        // transpose right matrix for better cache locality
+        var right_t = try right.t_alloc(allocator);
+        defer right_t.dealloc(allocator);
+
         out.rows = self.rows;
         out.cols = right.cols;
         var i: usize = 0;
+
         while (i < out.rows) : (i += 1) {
             var j: usize = 0;
             while (j < out.cols) : (j += 1) {
                 var acc: f64 = 0;
                 var k: usize = 0;
                 while (k < self.cols) : (k += 1) {
-                    acc += self.at(i, k) * right.at(k, j);
+                    acc += self.at(i, k) * right_t.at(j, k);
                 }
                 out.set(i, j, acc);
             }
         }
     }
 
-    pub fn multiply(self: Self, right: Self, out: *Self) void {
+    pub fn multiply(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
         // cannot inline this for the case
         // where out == &self (TODO: why?)
-        self.multiply_inner(right, out);
+        try self.mul(allocator, right, out);
     }
 
     pub fn sub_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
@@ -225,6 +231,7 @@ test "transpose test" {
 }
 
 test "matrix multiplication test" {
+    const allocator = std.testing.allocator;
     const mat_t = f64;
     var data = [_]mat_t{
         1, 2, 3,
@@ -253,7 +260,7 @@ test "matrix multiplication test" {
         .cols = 2,
     };
 
-    matrix.multiply(matrix_other, &out_matrix);
+    try matrix.multiply(allocator, matrix_other, &out_matrix);
     var expected_out_data = [_]mat_t{
         11, 18,
         13, 24,

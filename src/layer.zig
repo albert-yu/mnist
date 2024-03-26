@@ -77,7 +77,7 @@ pub fn Layer(comptime IN: usize, comptime OUT: usize) type {
 
             var last_input_t = try self.last_input.t_alloc(allocator);
             defer last_input_t.dealloc(allocator);
-            gradient_results.biases.multiply(last_input_t, &gradient_results.weights);
+            try gradient_results.biases.multiply(allocator, last_input_t, &gradient_results.weights);
             return gradient_results;
         }
 
