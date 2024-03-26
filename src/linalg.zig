@@ -118,8 +118,8 @@ pub const Matrix = struct {
         // transpose right matrix for better cache locality
         const right_t_rows = right.cols;
         const right_t_cols = right.rows;
-        const right_t_cols_blocks = (right_t_rows + VECTOR_SIZE - 1) / VECTOR_SIZE;
-        const right_t_vec: []Vec8 = try aligned_calloc(allocator, right_t_cols * right_t_cols_blocks);
+        const right_t_rows_blocks = (right_t_rows + VECTOR_SIZE - 1) / VECTOR_SIZE;
+        const right_t_vec: []Vec8 = try aligned_calloc(allocator, right_t_rows_blocks * right_t_cols);
         defer allocator.free(right_t_vec);
 
         // populate self matrix, row-major
@@ -150,7 +150,7 @@ pub const Matrix = struct {
                 var acc = Vec8{ 0, 0, 0, 0, 0, 0, 0, 0 };
                 for (0..left_rows_blocks) |k| {
                     const left_val = left_vec[i * left_rows_blocks + k];
-                    const right_val = right_t_vec[k * right_t_cols_blocks + j];
+                    const right_val = right_t_vec[k * right_t_rows_blocks + j];
                     acc += left_val * right_val;
                 }
 
