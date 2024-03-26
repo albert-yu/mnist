@@ -121,33 +121,43 @@ pub const Matrix = struct {
         defer allocator.free(right_t_vec);
 
         // populate self values as vectors
-        for (self.data, 0..) |elem, i| {
-            const row = i / self.cols;
-            const col = i % self.cols;
-            left_vec[row * self.cols + col][i % VECTOR_SIZE] = elem;
+        for (0..(self.rows)) |i| {
+            for (0..(right.cols)) |j| {
+                const block_i = i * left_rows_blocks + j / VECTOR_SIZE;
+                const block_j = j % VECTOR_SIZE;
+                const elem = self.at(i, j);
+                left_vec[block_i][block_j] = elem;
+            }
         }
 
         // populate right_t values as vectors
         for (0..(right.rows)) |i| {
-            _ = i;
+            for (0..(right.cols)) |j| {
+                const block_i = i * right_t_cols_blocks + j / VECTOR_SIZE;
+                const block_j = j % VECTOR_SIZE;
+                const elem = right.at(j, i); // note the transpose
+                right_t_vec[block_i][block_j] = elem;
+            }
         }
 
         out.rows = self.rows;
         out.cols = right.cols;
 
-        //var i: usize = 0;
+        // perform the multiplication
+        for (0..(out.rows)) |i| {
+            for (0..(out.cols)) |j| {
+                var acc = Vec8{ 0, 0, 0, 0, 0, 0, 0, 0 };
+                for (0..(self.cols)) |k| {
+                    const left_val = left_vec[i * left_rows_blocks + k];
+                    const right_val = right_t_vec[j * right_t_cols_blocks + k];
+                    acc += left_val * right_val;
+                }
 
-        //while (i < out.rows) : (i += 1) {
-        //    var j: usize = 0;
-        //    while (j < out.cols) : (j += 1) {
-        //        var acc: f64 = 0;
-        //        var k: usize = 0;
-        //        while (k < self.cols) : (k += 1) {
-        //            acc += self.at(i, k) * right_t.at(j, k);
-        //        }
-        //        out.set(i, j, acc);
-        //    }
-        //}
+                for (0..VECTOR_SIZE) |k| {
+                    out.set(i, j, out.at(i, j) + acc[k]);
+                }
+            }
+        }
     }
 
     pub fn multiply(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
