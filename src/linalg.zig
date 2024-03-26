@@ -54,6 +54,7 @@ pub const Matrix = struct {
 
     pub fn alloc(self: *Self, allocator: std.mem.Allocator) !void {
         self.data = try allocator.alloc(f64, self.rows * self.cols);
+        @memset(self.data, 0);
     }
 
     pub fn dealloc(self: Self, allocator: std.mem.Allocator) void {
