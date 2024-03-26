@@ -1,5 +1,15 @@
 const std = @import("std");
 
+const VECTOR_SIZE = 8;
+
+const Vec8 = @Vector(VECTOR_SIZE, f64);
+
+fn aligned_calloc(allocator: std.mem.Allocator, size: usize) ![]Vec8 {
+    const ptr = try allocator.alloc(Vec8, size);
+    @memset(ptr, Vec8{ 0, 0, 0, 0, 0, 0, 0, 0 });
+    return ptr;
+}
+
 /// Add `vec1` and `vec2`, store result in `out`
 fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
     for (vec1, 0..) |val, i| {
@@ -101,25 +111,43 @@ pub const Matrix = struct {
 
     /// Multiply but like faster
     fn mul(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
+        const left_rows_blocks = (self.rows + VECTOR_SIZE - 1) / VECTOR_SIZE;
+        var left_vec: []Vec8 = try aligned_calloc(allocator, left_rows_blocks * self.cols);
+        defer allocator.free(left_vec);
+
         // transpose right matrix for better cache locality
-        var right_t = try right.t_alloc(allocator);
-        defer right_t.dealloc(allocator);
+        const right_t_cols_blocks = (right.cols + VECTOR_SIZE - 1) / VECTOR_SIZE;
+        const right_t_vec: []Vec8 = try aligned_calloc(allocator, right.rows * right_t_cols_blocks);
+        defer allocator.free(right_t_vec);
+
+        // populate self values as vectors
+        for (self.data, 0..) |elem, i| {
+            const row = i / self.cols;
+            const col = i % self.cols;
+            left_vec[row * self.cols + col][i % VECTOR_SIZE] = elem;
+        }
+
+        // populate right_t values as vectors
+        for (0..(right.rows)) |i| {
+            _ = i;
+        }
 
         out.rows = self.rows;
         out.cols = right.cols;
-        var i: usize = 0;
 
-        while (i < out.rows) : (i += 1) {
-            var j: usize = 0;
-            while (j < out.cols) : (j += 1) {
-                var acc: f64 = 0;
-                var k: usize = 0;
-                while (k < self.cols) : (k += 1) {
-                    acc += self.at(i, k) * right_t.at(j, k);
-                }
-                out.set(i, j, acc);
-            }
-        }
+        //var i: usize = 0;
+
+        //while (i < out.rows) : (i += 1) {
+        //    var j: usize = 0;
+        //    while (j < out.cols) : (j += 1) {
+        //        var acc: f64 = 0;
+        //        var k: usize = 0;
+        //        while (k < self.cols) : (k += 1) {
+        //            acc += self.at(i, k) * right_t.at(j, k);
+        //        }
+        //        out.set(i, j, acc);
+        //    }
+        //}
     }
 
     pub fn multiply(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
@@ -172,7 +200,7 @@ pub const Matrix = struct {
     ///   i - 0-based row index
     ///   j - 0-based column index
     pub inline fn at(self: Self, i: usize, j: usize) f64 {
-        var index = self.get_offset(i, j);
+        const index = self.get_offset(i, j);
         return self.data[index];
     }
 
@@ -183,7 +211,7 @@ pub const Matrix = struct {
     ///   j - 0-based column index
     ///   value - value to set
     pub fn set(self: Self, i: usize, j: usize, value: f64) void {
-        var index = self.get_offset(i, j);
+        const index = self.get_offset(i, j);
         self.data[index] = value;
     }
 
@@ -218,8 +246,8 @@ test "transpose test" {
     };
     const t_matrix = try matrix.t_alloc(allocator);
     defer t_matrix.dealloc(allocator);
-    var expected_rows: usize = 3;
-    var expected_cols: usize = 2;
+    const expected_rows: usize = 3;
+    const expected_cols: usize = 2;
     try std.testing.expectEqual(expected_rows, t_matrix.rows);
     try std.testing.expectEqual(expected_cols, t_matrix.cols);
     var result_data = [_]f64{
@@ -248,7 +276,7 @@ test "matrix multiplication test" {
         .cols = 3,
     };
 
-    var matrix_other = Matrix{
+    const matrix_other = Matrix{
         .data = &data_other,
         .rows = 3,
         .cols = 2,
@@ -286,7 +314,7 @@ test "outer product test" {
         .cols = 1,
     };
 
-    var matrix_other = Matrix{
+    const matrix_other = Matrix{
         .data = &data_other,
         .rows = 1,
         .cols = data_other.len,
@@ -313,7 +341,7 @@ test "inner product test" {
         .rows = 1,
         .cols = data_a_t.len,
     };
-    var a = Matrix{
+    const a = Matrix{
         .data = &data_a_t,
         .rows = data_a_t.len,
         .cols = 1,

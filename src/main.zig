@@ -130,17 +130,17 @@ pub fn main() !void {
             var i = batch_index * BATCH_SIZE;
             const end = i + BATCH_SIZE;
             while (i < end) : (i += 1) {
-                var x_data = train_data_points.x_at(i);
+                const x_data = train_data_points.x_at(i);
                 // console_print_image(x_data, 28);
-                var y_data = train_data_points.y_at(i);
+                const y_data = train_data_points.y_at(i);
 
-                var x = linalg.Matrix{
+                const x = linalg.Matrix{
                     .data = x_data,
                     .rows = x_data.len,
                     .cols = 1,
                 };
 
-                var y = linalg.Matrix{
+                const y = linalg.Matrix{
                     .data = y_data,
                     .rows = y_data.len,
                     .cols = 1,
@@ -185,13 +185,13 @@ pub fn main() !void {
         var i: usize = 0;
         var correct: usize = 0;
         while (i < test_data.len()) : (i += 1) {
-            var x_data = test_data.x_at(i);
-            var x = linalg.Matrix{
+            const x_data = test_data.x_at(i);
+            const x = linalg.Matrix{
                 .data = x_data,
                 .rows = image_size,
                 .cols = 1,
             };
-            var y_data = test_data.y_at(i);
+            const y_data = test_data.y_at(i);
 
             var activations1 = try layer1.forward(allocator, x, maths.sigmoid);
             defer activations1.dealloc(allocator);
