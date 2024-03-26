@@ -140,7 +140,6 @@ pub const Matrix = struct {
                 rt_offset += 1;
             }
         }
-        std.debug.print("right_vec: {}\n\n", .{right_t_vec[0]});
 
         out.rows = self.rows;
         out.cols = right.cols;
