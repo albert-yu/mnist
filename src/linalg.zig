@@ -111,22 +111,22 @@ pub const Matrix = struct {
 
     /// Multiply but like faster
     fn mul(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
-        const left_rows_blocks = (self.rows + VECTOR_SIZE - 1) / VECTOR_SIZE;
-        var left_vec: []Vec8 = try aligned_calloc(allocator, left_rows_blocks * self.cols);
-        defer allocator.free(left_vec);
+        const n_blocks_l = (self.rows + VECTOR_SIZE - 1) / VECTOR_SIZE;
+        var a: []Vec8 = try aligned_calloc(allocator, n_blocks_l * self.cols);
+        defer allocator.free(a);
 
         // transpose right matrix for better cache locality
         const right_t_rows = right.cols;
         const right_t_cols = right.rows;
-        const right_t_rows_blocks = (right_t_rows + VECTOR_SIZE - 1) / VECTOR_SIZE;
-        const right_t_vec: []Vec8 = try aligned_calloc(allocator, right_t_rows_blocks * right_t_cols);
-        defer allocator.free(right_t_vec);
+        const n_blocks_r = (right_t_rows + VECTOR_SIZE - 1) / VECTOR_SIZE;
+        const b: []Vec8 = try aligned_calloc(allocator, n_blocks_r * right_t_cols);
+        defer allocator.free(b);
 
         // populate self matrix, row-major
         for (self.data, 0..) |elem, i| {
             const block_i = i / VECTOR_SIZE;
             const block_j = i % VECTOR_SIZE;
-            left_vec[block_i][block_j] = elem;
+            a[block_i][block_j] = elem;
         }
 
         // populate right_t values as vectors
@@ -136,7 +136,7 @@ pub const Matrix = struct {
                 const elem = right.at(i, j);
                 const block_i = rt_offset / VECTOR_SIZE;
                 const block_j = rt_offset % VECTOR_SIZE;
-                right_t_vec[block_i][block_j] = elem;
+                b[block_i][block_j] = elem;
                 rt_offset += 1;
             }
         }
@@ -148,9 +148,9 @@ pub const Matrix = struct {
         for (0..(out.rows)) |i| {
             for (0..(out.cols)) |j| {
                 var acc = Vec8{ 0, 0, 0, 0, 0, 0, 0, 0 };
-                for (0..left_rows_blocks) |k| {
-                    const left_val = left_vec[i * left_rows_blocks + k];
-                    const right_val = right_t_vec[k * right_t_rows_blocks + j];
+                for (0..n_blocks_l) |k| {
+                    const left_val = a[i * n_blocks_l + k];
+                    const right_val = b[j * n_blocks_r + k];
                     acc += left_val * right_val;
                 }
 
