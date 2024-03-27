@@ -112,7 +112,7 @@ pub const Matrix = struct {
         }
     }
 
-    /// Multiply but like faster
+    /// TODO: figure out why vectorized implementation is slower
     fn mul(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
         // number of blocks per row
         const n_blocks_l = (self.cols + VEC_SIZE - 1) / VEC_SIZE;
