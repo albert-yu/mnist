@@ -35,17 +35,17 @@ pub const DataPointSOA = struct {
 
         const size = self.len();
         var i: usize = 0;
-        var x_temp = try allocator.alloc(f64, self.x_chunk_size);
+        const x_temp = try allocator.alloc(f64, self.x_chunk_size);
         defer allocator.free(x_temp);
-        var y_temp = try allocator.alloc(f64, self.y_chunk_size);
+        const y_temp = try allocator.alloc(f64, self.y_chunk_size);
         defer allocator.free(y_temp);
         while (i < size) : (i += 1) {
             const random_offset = rand.random().int(usize);
             const new_i = (i + random_offset) % size;
             // swap
-            var x_i = self.x_at(i);
+            const x_i = self.x_at(i);
             copy_slice(x_i, x_temp);
-            var y_i = self.y_at(i);
+            const y_i = self.y_at(i);
             copy_slice(y_i, y_temp);
 
             copy_slice(self.x_at(new_i), x_i);

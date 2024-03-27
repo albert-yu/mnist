@@ -17,8 +17,8 @@ fn copy_image_data(input: []const u8, output: []f64) void {
 
 /// Need to call `free_mnist_data_points_soa`
 pub fn make_mnist_data_points_soa(allocator: std.mem.Allocator, x: []const u8, x_chunk_size: usize, y: []const u8, y_output_size: usize) !data_point.DataPointSOA {
-    var x_data = try allocator.alloc(f64, x.len);
-    var y_data = try allocator.alloc(f64, y.len * y_output_size);
+    const x_data = try allocator.alloc(f64, x.len);
+    const y_data = try allocator.alloc(f64, y.len * y_output_size);
     const result = data_point.DataPointSOA{
         .x = x_data,
         .x_chunk_size = x_chunk_size,

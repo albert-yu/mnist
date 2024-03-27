@@ -1,5 +1,17 @@
 const std = @import("std");
 
+const VEC_SIZE = 4;
+
+const Vec = @Vector(VEC_SIZE, f64);
+
+const zero_vec: Vec = [_]f64{0} ** VEC_SIZE;
+
+fn aligned_calloc(allocator: std.mem.Allocator, size: usize) ![]Vec {
+    const ptr = try allocator.alloc(Vec, size);
+    @memset(ptr, zero_vec);
+    return ptr;
+}
+
 /// Add `vec1` and `vec2`, store result in `out`
 fn sum(vec1: []f64, vec2: []const f64, out: []f64) void {
     for (vec1, 0..) |val, i| {
@@ -44,6 +56,7 @@ pub const Matrix = struct {
 
     pub fn alloc(self: *Self, allocator: std.mem.Allocator) !void {
         self.data = try allocator.alloc(f64, self.rows * self.cols);
+        @memset(self.data, 0);
     }
 
     pub fn dealloc(self: Self, allocator: std.mem.Allocator) void {
@@ -54,7 +67,7 @@ pub const Matrix = struct {
         var result = Self.new(self.rows, right.cols);
 
         try result.alloc(allocator);
-        self.multiply(right, &result);
+        try self.multiply(allocator, right, &result);
         return result;
     }
 
@@ -99,27 +112,62 @@ pub const Matrix = struct {
         }
     }
 
-    fn multiply_inner(self: Self, right: Self, out: *Self) void {
+    /// TODO: figure out why vectorized implementation is slower
+    fn mul(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
+        // number of blocks per row
+        const n_blocks_l = (self.cols + VEC_SIZE - 1) / VEC_SIZE;
+        var a: []Vec = try aligned_calloc(allocator, n_blocks_l * self.rows);
+        defer allocator.free(a);
+
+        // populate a
+        for (0..(self.rows)) |i| {
+            for (0..(self.cols)) |j| {
+                const elem = self.at(i, j);
+                a[i * n_blocks_l + j / VEC_SIZE][j % VEC_SIZE] = elem;
+            }
+        }
+
+        // transpose right matrix for better cache locality
+        const right_t_rows = right.cols;
+        const right_t_cols = right.rows;
+        const n_blocks_r = (right_t_cols + VEC_SIZE - 1) / VEC_SIZE;
+        const b: []Vec = try aligned_calloc(allocator, n_blocks_r * right_t_rows);
+        defer allocator.free(b);
+
+        // populate right_t values as vectors
+        for (0..right_t_rows) |i| {
+            for (0..right_t_cols) |j| {
+                const elem = right.at(j, i);
+                b[i * n_blocks_r + j / VEC_SIZE][j % VEC_SIZE] = elem;
+            }
+        }
+
         out.rows = self.rows;
         out.cols = right.cols;
-        var i: usize = 0;
-        while (i < out.rows) : (i += 1) {
-            var j: usize = 0;
-            while (j < out.cols) : (j += 1) {
-                var acc: f64 = 0;
-                var k: usize = 0;
-                while (k < self.cols) : (k += 1) {
-                    acc += self.at(i, k) * right.at(k, j);
+
+        // perform the multiplication
+        for (0..(out.rows)) |i| {
+            for (0..(out.cols)) |j| {
+                var acc = zero_vec;
+                for (0..n_blocks_l) |k| {
+                    const left_val = a[i * n_blocks_l + k];
+                    const right_val = b[j * n_blocks_r + k];
+                    acc += left_val * right_val;
                 }
-                out.set(i, j, acc);
+
+                var final: f64 = 0;
+                for (0..VEC_SIZE) |k| {
+                    final += acc[k];
+                }
+                out.set(i, j, final);
             }
         }
     }
 
-    pub fn multiply(self: Self, right: Self, out: *Self) void {
+    pub fn multiply(self: Self, allocator: std.mem.Allocator, right: Self, out: *Self) !void {
         // cannot inline this for the case
         // where out == &self (TODO: why?)
-        self.multiply_inner(right, out);
+        try self.mul(allocator, right, out);
     }
 
     pub fn sub_alloc(self: Self, allocator: std.mem.Allocator, right: Self) !Self {
@@ -166,7 +214,7 @@ pub const Matrix = struct {
     ///   i - 0-based row index
     ///   j - 0-based column index
     pub inline fn at(self: Self, i: usize, j: usize) f64 {
-        var index = self.get_offset(i, j);
+        const index = self.get_offset(i, j);
         return self.data[index];
     }
 
@@ -177,7 +225,7 @@ pub const Matrix = struct {
     ///   j - 0-based column index
     ///   value - value to set
     pub fn set(self: Self, i: usize, j: usize, value: f64) void {
-        var index = self.get_offset(i, j);
+        const index = self.get_offset(i, j);
         self.data[index] = value;
     }
 
@@ -212,8 +260,8 @@ test "transpose test" {
     };
     const t_matrix = try matrix.t_alloc(allocator);
     defer t_matrix.dealloc(allocator);
-    var expected_rows: usize = 3;
-    var expected_cols: usize = 2;
+    const expected_rows: usize = 3;
+    const expected_cols: usize = 2;
     try std.testing.expectEqual(expected_rows, t_matrix.rows);
     try std.testing.expectEqual(expected_cols, t_matrix.cols);
     var result_data = [_]f64{
@@ -225,6 +273,7 @@ test "transpose test" {
 }
 
 test "matrix multiplication test" {
+    const allocator = std.testing.allocator;
     const mat_t = f64;
     var data = [_]mat_t{
         1, 2, 3,
@@ -241,7 +290,7 @@ test "matrix multiplication test" {
         .cols = 3,
     };
 
-    var matrix_other = Matrix{
+    const matrix_other = Matrix{
         .data = &data_other,
         .rows = 3,
         .cols = 2,
@@ -253,7 +302,7 @@ test "matrix multiplication test" {
         .cols = 2,
     };
 
-    matrix.multiply(matrix_other, &out_matrix);
+    try matrix.multiply(allocator, matrix_other, &out_matrix);
     var expected_out_data = [_]mat_t{
         11, 18,
         13, 24,
@@ -279,7 +328,7 @@ test "outer product test" {
         .cols = 1,
     };
 
-    var matrix_other = Matrix{
+    const matrix_other = Matrix{
         .data = &data_other,
         .rows = 1,
         .cols = data_other.len,
@@ -306,7 +355,7 @@ test "inner product test" {
         .rows = 1,
         .cols = data_a_t.len,
     };
-    var a = Matrix{
+    const a = Matrix{
         .data = &data_a_t,
         .rows = data_a_t.len,
         .cols = 1,
